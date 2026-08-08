@@ -151,7 +151,16 @@ async function handleCircleJoinWebhook(userId: string, payload: CashfreeWebhookP
       console.error(`Circle join webhook: unknown user ${userId}`);
       return NextResponse.json({ received: true });
     }
-    await db.circleMembership.create({ data: { userId, qualifiedVia: "PAID" } });
+    // Membership row and role are written together — DATA_MODEL.md requires
+    // them to always agree, and a half-applied join (row without role, or
+    // role without row) is exactly what a webhook retried mid-failure would
+    // otherwise leave behind. ADMIN is never overwritten: an admin who pays
+    // to join Circle keeps their admin rights, and requireAdmin() is the only
+    // thing that reads that value.
+    await db.$transaction([
+      db.circleMembership.create({ data: { userId, qualifiedVia: "PAID" } }),
+      db.user.updateMany({ where: { id: userId, role: "CUSTOMER" }, data: { role: "CIRCLE" } }),
+    ]);
   }
   // Failure case: nothing to release (no stock/order was touched for a
   // membership payment) — just don't create the membership.

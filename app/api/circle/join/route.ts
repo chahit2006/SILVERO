@@ -16,9 +16,16 @@ export async function POST(req: Request) {
   }
 
   if (await qualifiesViaPastPurchase(sessionUser.id)) {
-    const membership = await db.circleMembership.create({
-      data: { userId: sessionUser.id, qualifiedVia: "PURCHASE" },
-    });
+    // ADMIN_PANEL_SPEC.md §1 — membership row and User.role are set in the
+    // same transaction so they can never disagree. `updateMany` with a
+    // role: "CUSTOMER" filter rather than `update` so an ADMIN who qualifies
+    // via a past purchase isn't silently demoted out of the admin panel.
+    const [membership] = await db.$transaction([
+      db.circleMembership.create({
+        data: { userId: sessionUser.id, qualifiedVia: "PURCHASE" },
+      }),
+      db.user.updateMany({ where: { id: sessionUser.id, role: "CUSTOMER" }, data: { role: "CIRCLE" } }),
+    ]);
     return NextResponse.json({ qualifiedVia: "PURCHASE", membership }, { status: 201 });
   }
 

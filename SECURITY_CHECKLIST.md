@@ -10,9 +10,9 @@ Build against this from day one, not just before Phase 3 testing. Almost everyth
 - [ ] Admin login is a **separate, stronger** flow — different route, ideally 2FA, definitely not reachable via the same customer-facing form
 
 ## 2. Authorization (the #1 place beginner mistakes become real bugs)
-- [ ] Every Circle-gated route/API re-checks membership **server-side** — see `ARCHITECTURE.md` §"Membership Gating"
+- [ ] Every Circle-gated route/API re-checks `role === 'CIRCLE'` (or `'ADMIN'`, if admins should also see gated content) **server-side** — see `ARCHITECTURE.md` §"Membership Gating"
 - [ ] Every account API scopes queries to the logged-in user's own ID — never trust a `userId` passed from the client (`/api/account/orders/[id]` must verify the order belongs to the requesting user, not just that *some* order with that ID exists)
-- [ ] Admin routes check for Admin role specifically, not just "logged in"
+- [ ] Admin routes check `role === 'ADMIN'` specifically — not just "logged in", and not just "not CUSTOMER" (a CIRCLE member is also not a plain customer, but isn't an admin)
 
 ## 3. Input Validation
 - [ ] Validate every form server-side with a schema library (e.g. `zod`) — never rely on frontend validation alone (frontend checks are for UX, not security)

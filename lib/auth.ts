@@ -93,3 +93,65 @@ export async function getSessionUser() {
   const session = await getServerSession(authOptions);
   return session?.user ?? null;
 }
+
+/**
+ * ADMIN_PANEL_SPEC.md §1 — the single admin gate. Every `/admin/*` page and
+ * every `/api/admin/*` route goes through this or its API-shaped sibling
+ * below; there is no second place that decides who is an admin.
+ *
+ * Three deliberate choices:
+ *
+ * 1. **Role is read from the database, not from the JWT.** The session token
+ *    is minted at login and lives for days — a role baked into it would keep
+ *    working after an admin is demoted, and would not work for one just
+ *    promoted until they signed out and back in. One indexed lookup per admin
+ *    request is a fair price on an internal panel with a handful of users.
+ * 2. **`=== "ADMIN"` exactly**, never `!== "CUSTOMER"` — a CIRCLE member must
+ *    never satisfy an admin check.
+ * 3. **Non-admins are redirected to /account, not 404'd or shown an error.**
+ *    Spec §1: the response must not confirm that /admin/* exists. Logged-out
+ *    visitors hit requireUser()'s /account/login redirect one line earlier and
+ *    never reach the role check.
+ */
+export async function requireAdmin() {
+  const sessionUser = await requireUser();
+  const user = await db.user.findUnique({
+    where: { id: sessionUser.id },
+    select: { id: true, email: true, firstName: true, lastName: true, role: true },
+  });
+
+  if (!user || user.role !== "ADMIN") {
+    redirect("/account");
+  }
+  return user;
+}
+
+/**
+ * Same check as requireAdmin() but for API routes — returns null instead of
+ * redirecting, so the caller can answer 404. CLAUDE.md constraint #5 applies
+ * to admin exactly as it does to Circle: the API route re-checks on its own,
+ * independently of whatever the page layout already gated.
+ */
+export async function getAdminOrNull() {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) return null;
+
+  const user = await db.user.findUnique({
+    where: { id: sessionUser.id },
+    select: { id: true, email: true, firstName: true, lastName: true, role: true },
+  });
+
+  if (!user || user.role !== "ADMIN") return null;
+  return user;
+}
+
+/**
+ * Spec §1 asks for an explicit decision on whether ADMIN also passes the
+ * Circle gate. **It does not.** An admin previewing the member experience
+ * would submit real CustomOrder rows against their own account and pollute
+ * the /admin/circle-orders queue they are meant to be working; a test Circle
+ * account is the cleaner way to preview it. Circle gating in lib/circle.ts
+ * therefore keeps checking for a CircleMembership row and is unchanged by the
+ * arrival of Role — an admin without a membership row already fails it.
+ */
+

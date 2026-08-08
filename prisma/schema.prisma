@@ -40,6 +40,16 @@ enum CircleQualification {
   PAID
 }
 
+// ADMIN_PANEL_SPEC.md §1. Three values, and the check is always `=== 'ADMIN'`
+// exactly — never `!== 'CUSTOMER'`, which would let a CIRCLE member through.
+// No self-serve path to ADMIN: /api/auth/register always writes the CUSTOMER
+// default, and admins are promoted out-of-band via prisma/promote-admin.ts.
+enum Role {
+  CUSTOMER
+  CIRCLE
+  ADMIN
+}
+
 model User {
   id             String               @id @default(cuid())
   email          String               @unique
@@ -47,6 +57,7 @@ model User {
   passwordHash   String
   firstName      String
   lastName       String
+  role           Role                 @default(CUSTOMER)
   createdAt      DateTime             @default(now())
 
   addresses      Address[]
