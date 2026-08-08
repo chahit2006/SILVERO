@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ivory text-text-dark font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display;
+  }
+
+  /* DESIGN_SYSTEM.md §9 — respect prefers-reduced-motion: disable all
+     animation/transition, use instant state changes instead. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Underline-slide-from-left link hover — DESIGN_SYSTEM.md §9 */
+  .link-underline {
+    @apply relative;
+  }
+  .link-underline::after {
+    content: "";
+    @apply absolute left-0 -bottom-0.5 h-px w-full origin-left scale-x-0 bg-current transition-transform duration-200 ease-out;
+  }
+  .link-underline:hover::after {
+    @apply scale-x-100;
+  }
+
+  /* Lightweight prose styling for static/legal pages — avoids adding
+     @tailwindcss/typography for a handful of pages. */
+  .prose-static h2 {
+    @apply mt-8 font-display text-lg text-text-dark;
+  }
+  .prose-static ul {
+    @apply list-disc space-y-1.5 pl-5;
+  }
+  .prose-static a {
+    @apply text-olive-dark underline;
+  }
+}

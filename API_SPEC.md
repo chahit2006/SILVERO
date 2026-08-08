@@ -6,6 +6,7 @@ All routes are Next.js API Routes under `app/api/`. Auth-gated routes must check
 | Route | Method | Notes |
 |---|---|---|
 | `/api/auth/[...nextauth]` | GET/POST | NextAuth handler — login, session, logout |
+| `/api/auth/register` | POST | **Added 2026-08-08, wasn't originally documented here.** NextAuth's credentials provider verifies logins but has no built-in account-creation endpoint — this is what inserts the `User` row (bcrypt hash, zod-validated, rate-limited). |
 
 ## Products & Categories
 | Route | Method | Notes |
@@ -40,6 +41,7 @@ All routes are Next.js API Routes under `app/api/`. Auth-gated routes must check
 | `/api/account/addresses` | GET/POST/PATCH/DELETE | Address book |
 | `/api/account/wishlist` | GET/POST/DELETE | Wishlist |
 | `/api/account/returns` | GET/POST | Return requests |
+| `/api/recently-viewed` | GET/POST | **Added 2026-08-08, wasn't originally documented here.** Backs `/account/recently-viewed` — GET reads, POST records a view. Scoped to the logged-in user or the guest cart cookie (`lib/cart.ts`), same identity as the cart. |
 
 ## SILVERO Circle & Custom Order
 | Route | Method | Notes |

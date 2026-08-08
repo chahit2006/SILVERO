@@ -103,6 +103,7 @@ model Product {
   isBestseller  Boolean  @default(false)
   isNew         Boolean  @default(false)
   createdAt     DateTime @default(now())
+  weightGrams   Int? // added 2026-08-08 (Phase 2) — see "Notes" below
 
   cartItems     CartItem[]
   orderItems    OrderItem[]
@@ -123,13 +124,14 @@ model CartItem {
   isGift     Boolean  @default(false)
   giftWrap   String?              // "signature" | "premium"
   giftNote   String?
+  registryItemId String? // added 2026-08-08 (Phase 2 Gifting) — see "Notes"
 }
 
 model Order {
   id                  String      @id @default(cuid())
   userId              String?
   user                User?       @relation(fields: [userId], references: [id])
-  addressId           String?
+  addressId           String? // optional pointer to a saved Address — not the source of truth, see snapshot fields below
   status              OrderStatus @default(PENDING)
   subtotal            Int
   shipping             Int         @default(0)
@@ -137,6 +139,19 @@ model Order {
   cashfreeOrderId     String?     @unique
   shiprocketShipmentId String?
   createdAt           DateTime    @default(now())
+
+  // Added 2026-08-08 (Phase 2 checkout) — see "Notes" below.
+  contactEmail     String
+  contactPhone     String
+  contactFirstName String
+  contactLastName  String
+  shippingLine1    String
+  shippingLine2    String?
+  shippingCity     String
+  shippingState    String
+  shippingPincode  String
+  shippingCountry  String @default("India")
+  deliveryMethod   String @default("STANDARD") // "STANDARD" | "EXPRESS"
 
   items               OrderItem[]
 }
@@ -150,6 +165,7 @@ model OrderItem {
   size      String?
   quantity  Int
   price     Int              // price at time of purchase, not live product price
+  registryItemId String? // see CartItem.registryItemId
 }
 
 model WishlistItem {
@@ -162,6 +178,7 @@ model WishlistItem {
 }
 
 model RecentlyViewed {
+  id        String   @id @default(cuid())
   userId    String?
   sessionId String?
   productId String
@@ -224,6 +241,17 @@ model GiftCard {
   message         String?
   deliveryDate    DateTime?
   purchasedByUserId String?
+
+  // Added 2026-08-08 (Phase 2 Gifting) — see "Notes"
+  isPaid       Boolean @default(false)
+  buyerEmail   String  @default("")
+  buyerPhone   String  @default("")
+  shippingLine1   String?
+  shippingLine2   String?
+  shippingCity    String?
+  shippingState   String?
+  shippingPincode String?
+  shippingCountry String? @default("India")
 }
 
 model Registry {
@@ -285,3 +313,8 @@ model ReturnRequest {
 - **Guest carts** use a `sessionId` cookie instead of `userId`; merge into the user's cart on login.
 - **Stock locking** (see `ARCHITECTURE.md`) happens in the same transaction that creates the `Order` + decrements `Product.stock` — don't decrement stock anywhere else.
 - **HEIC photo uploads** (Custom Order) need server-side conversion to JPG before storing the URL — don't store raw HEIC, most browsers can't display it.
+- **`RecentlyViewed.id`** was added (2026-08-08) — the model as originally drafted had no unique identifier, which Prisma requires on every model (`prisma generate` fails without one). Added an `id String @id @default(cuid())` field to match every other model's pattern.
+- **`Order` contact/shipping snapshot fields** were added (2026-08-08, Phase 2 checkout) — `Address.userId` is required, so a guest checkout (DESIGN_SYSTEM.md §8 requires this) had no way to attach a shipping address to an order under the original schema. Rather than make `Address.userId` optional (which would weaken the account address book), Order now stores its own contact/shipping snapshot — also the correct e-commerce pattern regardless of guest/logged-in, since an order's shipping details shouldn't retroactively change if the address book entry is later edited.
+- **`Product.weightGrams`** was added (2026-08-08, Phase 2 Shiprocket integration) — Shiprocket's rate and shipment-creation APIs require package weight, and no field carried it. Nullable; `lib/shiprocket.ts` falls back to a conservative flat default per item when unset, rather than failing. Real per-product weights should be backfilled before launch for accurate rates.
+- **`GiftCard` payment/shipping fields** were added (2026-08-08, Phase 2 Gifting) — buying a gift card is a real Cashfree payment, same pattern as `Order`: the row is created unpaid first (`GiftCard.id` doubles as the Cashfree `order_id`) and the webhook flips `isPaid` on success. Shipping fields are null for digital cards, populated for physical ones.
+- **`CartItem.registryItemId` / `OrderItem.registryItemId`** were added (2026-08-08, Phase 2 Gifting) — PRD.md §4: "guest checkout can fulfill items on someone else's registry." Rather than a `/purchase` endpoint that just flips `RegistryItem.purchased` on click (which would mark something "purchased" with no actual payment happening), a registry item is added to the guest's cart tagged with this field, goes through the real checkout + Cashfree webhook, and only then gets marked purchased — see `app/api/registry/[shareSlug]/purchase` and the webhook's registry branch.

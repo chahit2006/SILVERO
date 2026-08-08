@@ -1,0 +1,322 @@
+// SILVERO.925 — Prisma schema
+// Source of truth: DATA_MODEL.md. Keep this file and that doc in sync —
+// if you add/change a model here, update DATA_MODEL.md in the same change.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Gender {
+  NAR
+  NARI
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum CustomOrderStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  QUOTATION_SENT
+  APPROVED
+  IN_PRODUCTION
+  QUALITY_CHECK
+  READY
+  SHIPPED
+}
+
+enum CircleQualification {
+  PURCHASE
+  PAID
+}
+
+model User {
+  id             String               @id @default(cuid())
+  email          String               @unique
+  phone          String?
+  passwordHash   String
+  firstName      String
+  lastName       String
+  createdAt      DateTime             @default(now())
+
+  addresses      Address[]
+  orders         Order[]
+  wishlist       WishlistItem[]
+  recentlyViewed RecentlyViewed[]
+  circle         CircleMembership?
+  customOrders   CustomOrder[]
+  referral       Referral?
+  loyalty        LoyaltyTransaction[]
+  registries     Registry[]
+  cartItems      CartItem[]
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  country   String   @default("India")
+  isDefault Boolean  @default(false)
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  gender      Gender
+  slug        String    @unique // zanjeer, nishaan, vaada, noor, etc.
+  name        String // custom brand name
+  englishName String // e.g. "Rings"
+  products    Product[]
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+  name         String
+  slug         String   @unique
+  price        Int // rupees, whole integers — see DATA_MODEL.md "Notes"
+  images       String[]
+  material     String?
+  stone        String?
+  occasion     String?
+  description  String?
+  sizeOptions  String[] // e.g. ["10","12","14","16","18","20"]
+  stock        Int      @default(0)
+  isBestseller Boolean  @default(false)
+  isNew        Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  weightGrams  Int? // added 2026-08-08 (Phase 2) — Shiprocket rate/shipment calls need package weight; nullable, lib/shiprocket.ts falls back to a conservative default when unset
+
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  wishlistedBy  WishlistItem[]
+  recentViews   RecentlyViewed[]
+  registryItems RegistryItem[]
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  userId    String? // null for guest carts (use sessionId instead)
+  user      User?   @relation(fields: [userId], references: [id])
+  sessionId String? // guest cart identifier (cookie-based)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  size      String?
+  quantity  Int     @default(1)
+  isGift    Boolean @default(false)
+  giftWrap  String? // "signature" | "premium"
+  giftNote  String?
+  // Added 2026-08-08 (Phase 2 Gifting) — set when this item was added via a
+  // registry share link; carried to OrderItem so the webhook can mark the
+  // RegistryItem purchased on real payment success, not before. See
+  // app/api/registry/[shareSlug]/purchase.
+  registryItemId String?
+}
+
+model Order {
+  id                   String      @id @default(cuid())
+  userId               String?
+  user                 User?       @relation(fields: [userId], references: [id])
+  addressId            String? // optional pointer to a saved Address the shopper picked at checkout — NOT the source of truth, see snapshot fields below
+  status               OrderStatus @default(PENDING)
+  subtotal             Int
+  shipping             Int         @default(0)
+  total                Int
+  cashfreeOrderId      String?     @unique
+  shiprocketShipmentId String?
+  createdAt            DateTime    @default(now())
+
+  // Added 2026-08-08 for Phase 2 checkout. Address.userId is required, so a
+  // guest (DESIGN_SYSTEM.md §8 — "guest checkout always available") has no
+  // way to own an Address row. Snapshotting contact + shipping fields
+  // directly on Order also means a later edit to a saved address book entry
+  // can't retroactively change where an already-placed order ships —
+  // standard e-commerce practice, not just a guest workaround.
+  contactEmail     String
+  contactPhone     String
+  contactFirstName String
+  contactLastName  String
+  shippingLine1    String
+  shippingLine2    String?
+  shippingCity     String
+  shippingState    String
+  shippingPincode  String
+  shippingCountry  String @default("India")
+  deliveryMethod   String @default("STANDARD") // "STANDARD" | "EXPRESS" — DESIGN_SYSTEM.md §8
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  size      String?
+  quantity  Int
+  price     Int // price at time of purchase, not live product price
+  registryItemId String? // see CartItem.registryItemId
+}
+
+model WishlistItem {
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@id([userId, productId])
+}
+
+model RecentlyViewed {
+  // DATA_MODEL.md's version of this model has no unique identifier, which
+  // Prisma requires on every model — added `id` here to match every other
+  // model's pattern. Flagged for DATA_MODEL.md to be updated to match.
+  id        String   @id @default(cuid())
+  userId    String?
+  sessionId String?
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  viewedAt  DateTime @default(now())
+  User      User?    @relation(fields: [userId], references: [id])
+}
+
+model CircleMembership {
+  userId        String              @id
+  user          User                @relation(fields: [userId], references: [id])
+  qualifiedVia  CircleQualification
+  pointsBalance Int                 @default(0)
+  joinedAt      DateTime            @default(now())
+}
+
+model CustomOrder {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id])
+  referenceNumber   String            @unique
+  photos            String[] // uploaded image URLs, max 5
+  jewelleryType     String // Ring, Chain, Bracelet, Kada, Pendant, etc.
+  description       String
+  sizing            String? // conditional field, stored as JSON string or separate columns
+  netWeightGrams    Int?
+  melting           String // 925 Sterling, Gold-Plated 925, etc.
+  budgetRange       String
+  timeline          String
+  contactPreference String // Phone, WhatsApp, Email
+  status            CustomOrderStatus @default(SUBMITTED)
+  quotationDetails  String?
+  createdAt         DateTime          @default(now())
+}
+
+model Referral {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id])
+  code   String @unique
+}
+
+model LoyaltyTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  points    Int
+  type      String // "EARN" | "REDEEM"
+  orderId   String?
+  createdAt DateTime @default(now())
+}
+
+model GiftCard {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  amount            Int
+  balance           Int
+  isDigital         Boolean   @default(true)
+  recipientName     String?
+  senderName        String?
+  message           String?
+  deliveryDate      DateTime?
+  purchasedByUserId String?
+
+  // Added 2026-08-08 (Phase 2 Gifting). Buying a gift card is a real
+  // payment — GiftCard.id doubles as the Cashfree order_id, same pattern as
+  // Order, so the row must exist (unpaid) before the redirect and the
+  // webhook flips isPaid. The code/balance aren't usable/shown as active
+  // until isPaid is true.
+  isPaid       Boolean @default(false)
+  buyerEmail   String  @default("")
+  buyerPhone   String  @default("")
+  // Physical variant only (PRD.md §4 "both digital and physical (shipped)
+  // variants") — null for digital.
+  shippingLine1   String?
+  shippingLine2   String?
+  shippingCity    String?
+  shippingState   String?
+  shippingPincode String?
+  shippingCountry String? @default("India")
+}
+
+model Registry {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  name      String
+  occasion  String
+  eventDate DateTime?
+  shareSlug String         @unique
+  items     RegistryItem[]
+}
+
+model RegistryItem {
+  id                   String   @id @default(cuid())
+  registryId           String
+  registry             Registry @relation(fields: [registryId], references: [id])
+  productId            String
+  product              Product  @relation(fields: [productId], references: [id])
+  purchased            Boolean  @default(false)
+  purchasedByGuestName String?
+}
+
+model Appointment {
+  id           String   @id @default(cuid())
+  guestName    String
+  guestContact String
+  service      String // styling consultation, engraving, try-on
+  date         DateTime
+  status       String   @default("CONFIRMED")
+}
+
+model CorporateLead {
+  id        String   @id @default(cuid())
+  type      String // "CORPORATE" | "BULK"
+  company   String?
+  contact   String
+  occasion  String?
+  quantity  Int?
+  budget    String?
+  timeline  String?
+  createdAt DateTime @default(now())
+}
+
+model ReturnRequest {
+  id           String   @id @default(cuid())
+  orderId      String
+  itemIds      String[]
+  reason       String
+  refundMethod String
+  status       String   @default("REQUESTED") // REQUESTED, APPROVED, SHIPPED, RECEIVED, REFUNDED
+  createdAt    DateTime @default(now())
+}

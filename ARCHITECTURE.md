@@ -30,6 +30,8 @@ flowchart TB
 6. Backend calls Shiprocket to create the shipment
 7. If payment fails or times out, the stock lock from step 3 is released back
 
+**⚠️ Known gap (flagged 2026-08-08, not built yet):** step 7's "or times out" half only works for an *explicit* Cashfree failure webhook — implemented in `/api/cashfree/webhook`. A customer who abandons checkout after step 3 without Cashfree ever sending a terminal webhook (closes the tab, connection drops) leaves that order `PENDING` with stock still decremented, indefinitely — there's no scheduled job reclaiming it. Needs a cleanup job (cron or `node-cron` in the PM2 process) that cancels `PENDING` orders past some age (e.g. 30 min) and restores their stock, using the same transaction pattern `/api/cashfree/webhook` uses for explicit failures. Build this before relying on real inventory counts.
+
 ## Membership Gating — SILVERO Circle (ties back to client Q3)
 
 1. Every request to `/circle/*` pages and `/api/circle/*` routes passes through an auth check first
