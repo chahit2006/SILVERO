@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import type { NavCategory } from "@/lib/nav-data";
-import { MATERIAL_OPTIONS, OCCASION_OPTIONS, PRICE_BANDS, STONE_OPTIONS } from "@/lib/filter-options";
+import type { PriceBounds } from "@/lib/products";
+import { MATERIAL_OPTIONS, OCCASION_OPTIONS, STONE_OPTIONS } from "@/lib/filter-options";
 import { ChevronDownIcon } from "@/components/ui/icons";
+import { PriceRangeSlider, type PriceRange } from "./PriceRangeSlider";
 
 export type AdjustableFilters = {
   category: string[];
   material: string[];
   stone: string[];
   occasion: string[];
-  priceBand: number | null;
+  /** null = no price filter (the slider spans the whole catalogue). */
+  price: PriceRange | null;
 };
 
 export const EMPTY_FILTERS: AdjustableFilters = {
@@ -18,7 +21,7 @@ export const EMPTY_FILTERS: AdjustableFilters = {
   material: [],
   stone: [],
   occasion: [],
-  priceBand: null,
+  price: null,
 };
 
 function toggle(list: string[], value: string) {
@@ -26,13 +29,16 @@ function toggle(list: string[], value: string) {
 }
 
 // DESIGN_SYSTEM.md §6 "PLP" — each filter group is a collapsible section
-// with checkboxes (price range is single-select since bands are exclusive).
+// with checkboxes. Price is the exception: FEATURE_SPEC_BATCH2.md §1 replaced
+// the original preset bands with a drag-to-select range slider.
 export function FilterPanel({
   categories,
+  priceBounds,
   filters,
   onChange,
 }: {
   categories?: NavCategory[];
+  priceBounds: PriceBounds;
   filters: AdjustableFilters;
   onChange: (next: AdjustableFilters) => void;
 }) {
@@ -52,14 +58,11 @@ export function FilterPanel({
       )}
 
       <Section title="Price Range">
-        {PRICE_BANDS.map((band, i) => (
-          <Checkbox
-            key={band.label}
-            label={band.label}
-            checked={filters.priceBand === i}
-            onChange={() => onChange({ ...filters, priceBand: filters.priceBand === i ? null : i })}
-          />
-        ))}
+        <PriceRangeSlider
+          bounds={priceBounds}
+          value={filters.price}
+          onCommit={(price) => onChange({ ...filters, price })}
+        />
       </Section>
 
       <Section title="Material">

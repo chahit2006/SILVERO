@@ -1,4 +1,4 @@
-import { getProducts, type ProductFilters } from "@/lib/products";
+import { getPriceBounds, getProducts, type ProductFilters } from "@/lib/products";
 import type { NavCategory } from "@/lib/nav-data";
 import { ProductListingPage } from "./ProductListingPage";
 
@@ -17,11 +17,16 @@ export async function ShopRoute({
   baseFilters: ProductFilters;
   categories?: NavCategory[];
 }) {
-  const { products, total } = await getProducts(baseFilters);
+  // Both queries hit the same table with the same base filters, so they run
+  // together rather than adding a second round-trip to first paint.
+  const [{ products, total }, priceBounds] = await Promise.all([
+    getProducts(baseFilters),
+    getPriceBounds(baseFilters),
+  ]);
 
   return (
     <ProductListingPage
-      config={{ title, description, baseFilters, categories }}
+      config={{ title, description, baseFilters, categories, priceBounds }}
       initialProducts={products}
       initialTotal={total}
     />

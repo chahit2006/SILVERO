@@ -11,7 +11,7 @@ All routes are Next.js API Routes under `app/api/`. Auth-gated routes must check
 | Route | Method | Notes |
 |---|---|---|
 | `/api/categories` | GET | List all categories, optionally filtered by `gender` |
-| `/api/products` | GET | List/filter products — query params: `category`, `price`, `material`, `stone`, `occasion`, `sort` |
+| `/api/products` | GET | List/filter products — query params: `category`, `gender`, `minPrice`, `maxPrice`, `material`, `stone`, `occasion`, `isNew`, `isBestseller`, `sort`, `page` (see the Batch 2 row below for filter details) |
 | `/api/products/[id]` | GET | Single product detail (used by the drawer/modal) |
 | `/api/search` | GET | Search products by query string |
 
@@ -68,7 +68,7 @@ All routes are Next.js API Routes under `app/api/`. Auth-gated routes must check
 ## Discovery Features (Batch 2)
 | Route | Method | Notes |
 |---|---|---|
-| `/api/products` (extended) | GET | Now also accepts `priceMin`, `priceMax`, `material[]`, `stone[]`, `occasion[]` for advanced filtering — see `FEATURE_SPEC_BATCH2.md` §1 |
+| `/api/products` (extended) | GET | Advanced filtering — see `FEATURE_SPEC_BATCH2.md` §1. **Canonical param names are `minPrice`/`maxPrice`** (what the route shipped with in Phase 1 and what the PLP sends); `priceMin`/`priceMax` from the original Batch 2 draft are accepted as aliases. `material`/`stone`/`occasion` are comma-separated lists, not repeated `[]` keys. An inverted range is swapped, and non-numeric/negative values are ignored rather than 500ing |
 | `/api/compare` | — | No API needed — compare state lives client-side via query params (`/compare?ids=a,b`), each product fetched via the existing `/api/products/[id]` |
 | `/api/stacks/presets` | GET | List preset stacks (curated bundles) |
 | `/api/stacks/[id]/add-to-cart` | POST | Adds every item in a (possibly customized) stack to the cart with a shared `stackId` |

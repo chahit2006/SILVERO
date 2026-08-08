@@ -41,6 +41,14 @@ Snapshot as of 2026-08-08. Keep this updated as work continues — it's the fast
 - Transition rules live only in `lib/admin-orders.ts`; `PENDING`/`PAID` are unreachable from any admin request (webhook-only, CLAUDE.md #6)
 - **Not yet built:** `/admin` dashboard, `/admin/products`, and the four queues — awaiting sign-off before starting
 
+### Batch 2 — Feature 1 of 5 (`FEATURE_SPEC_BATCH2.md` Build Order)
+- **Advanced PLP filters** — much of this already existed (category/material/stone/occasion checkboxes, active tags, clear-all, mobile sheet, and `/api/products` already accepting the filter params). What was added:
+  - Dual-thumb **price range slider** (`components/shop/PriceRangeSlider.tsx`) replacing the preset bands, ends sourced from the live catalogue via `getPriceBounds()`; commits on release, not mid-drag. Native inputs, no new dependency
+  - Mobile sheet now edits a **draft + explicit "Apply filters"**; desktop sidebar still applies live
+  - `/api/products` accepts `priceMin`/`priceMax` as aliases for the canonical `minPrice`/`maxPrice`, swaps inverted ranges, ignores non-numeric/negative values
+  - **Bug fixed:** `category` and `gender` were spread as two separate `category:` keys in the same Prisma `where`, so gender overwrote category — every category checkbox on `/shop/nar` and `/shop/nari` was silently ignored. Now merged into one nested filter
+- **Not yet built:** Batch 2 features 2–5 (Compare, Build Your Own Stack, Corporate/Bulk/Engraving forms, Book Appointment) — awaiting sign-off one at a time
+
 **Total: 75 pages, 28 API routes, 175 source files. Every stage verified against a real seeded local Postgres — not just build-clean — including a genuinely signed Cashfree webhook payload for the payment-confirmation paths.**
 
 ## Not done

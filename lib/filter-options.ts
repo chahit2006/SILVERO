@@ -6,14 +6,12 @@ export const MATERIAL_OPTIONS = ["925 Sterling Silver", "925 Sterling Silver, Go
 export const STONE_OPTIONS = ["Cubic Zirconia", "Moissanite"];
 export const OCCASION_OPTIONS = ["Everyday", "Festive", "Wedding", "Gifting"];
 
-// DESIGN_SYSTEM.md §6 — "Price Range (₹0–2K, 2K–5K, 5K–10K, 10K–15K, 15K+)"
-export const PRICE_BANDS: { label: string; min?: number; max?: number }[] = [
-  { label: "₹0 – 2,000", min: 0, max: 2000 },
-  { label: "₹2,000 – 5,000", min: 2000, max: 5000 },
-  { label: "₹5,000 – 10,000", min: 5000, max: 10000 },
-  { label: "₹10,000 – 15,000", min: 10000, max: 15000 },
-  { label: "₹15,000+", min: 15000 },
-];
+// The preset PRICE_BANDS (₹0–2K, 2K–5K, …) that DESIGN_SYSTEM.md §6 specified
+// were removed on 2026-08-08: FEATURE_SPEC_BATCH2.md §1 replaced them with a
+// drag-to-select range slider ("not just preset buckets"), whose ends come
+// from the live catalogue via getPriceBounds() in lib/products.ts rather than
+// from a hardcoded list that real product data would immediately outgrow.
+// DESIGN_SYSTEM.md §6 is stale on this point — flagged for that doc.
 
 export const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "featured", label: "Featured" },

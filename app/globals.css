@@ -45,6 +45,38 @@
     @apply scale-x-100;
   }
 
+  /* Dual-thumb price slider — FEATURE_SPEC_BATCH2.md §1.
+     Two <input type="range"> elements are stacked on one track. The inputs
+     themselves must ignore pointer events (or the top one would swallow every
+     click meant for the bottom one's thumb) while their thumbs still accept
+     them, which can only be expressed in real CSS — Tailwind has no utility
+     for a vendor pseudo-element. Native inputs are used rather than a
+     drag-handling library so the control stays keyboard-operable for free and
+     adds no dependency (CLAUDE.md constraint #1). */
+  .range-thumb {
+    @apply pointer-events-none absolute inset-x-0 top-0 h-1.5 w-full appearance-none bg-transparent;
+  }
+  .range-thumb:focus {
+    @apply outline-none;
+  }
+  .range-thumb::-webkit-slider-thumb {
+    @apply pointer-events-auto h-4 w-4 cursor-pointer appearance-none rounded-full border-2 border-white bg-olive-dark;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  }
+  .range-thumb::-moz-range-thumb {
+    @apply pointer-events-auto h-4 w-4 cursor-pointer rounded-full border-2 border-white bg-olive-dark;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  }
+  /* Keyboard focus has to stay visible — the thumb is the only affordance
+     here, so a suppressed focus ring would make this unusable without a
+     mouse (SECURITY_CHECKLIST/DESIGN_SYSTEM accessibility baseline). */
+  .range-thumb:focus-visible::-webkit-slider-thumb {
+    @apply ring-2 ring-olive-dark ring-offset-2;
+  }
+  .range-thumb:focus-visible::-moz-range-thumb {
+    @apply ring-2 ring-olive-dark ring-offset-2;
+  }
+
   /* Lightweight prose styling for static/legal pages — avoids adding
      @tailwindcss/typography for a handful of pages. */
   .prose-static h2 {

@@ -84,8 +84,9 @@ Estimated total scroll: 6–8 viewport heights on desktop.
 
 - **Desktop:** sidebar filters left (200px) + 4-column product grid
 - **Mobile:** full-width grid, filters in a bottom-sheet modal
-- **Filters:** Category (checkboxes), Price Range (₹0–2K, 2K–5K, 5K–10K, 10K–15K, 15K+), Material, Stone, Occasion — each with chevron expand/collapse
+- **Filters:** Category (checkboxes), Price Range (**dual-thumb range slider** — updated 2026-08-08, `FEATURE_SPEC_BATCH2.md` §1 replaced the original ₹0–2K/2K–5K/5K–10K/10K–15K/15K+ preset bands; the slider's ends come from the live catalogue via `getPriceBounds()`), Material, Stone, Occasion — each with chevron expand/collapse
 - **Active filters:** dismissible tags + "Clear all"
+- **Mobile filter sheet:** edits a draft and commits on an explicit "Apply filters" button (`FEATURE_SPEC_BATCH2.md` §1), rather than applying live behind the sheet. Desktop sidebar still applies on change.
 - **Sort:** top-right dropdown — Featured, Price Low–High, Price High–Low, Newest
 - **Pagination:** "Load more" button, 24 products per load, "Showing X of Y products" + "View all" link
 
