@@ -16,7 +16,6 @@ const HELP_LINKS = [
   { href: "/faq", label: "FAQs" },
   { href: "/account/orders", label: "Order Tracking" },
   { href: "/shipping", label: "Shipping" },
-  { href: "/returns", label: "Returns" },
   { href: "/guides/ring-size", label: "Size Guides" },
   { href: "/contact", label: "Contact" },
 ];

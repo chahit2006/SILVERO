@@ -12,11 +12,18 @@ export function ProductCard({
   wishlisted = false,
   onToggleWishlist,
   onOpenDetail,
+  comparing,
+  onToggleCompare,
+  compareDisabled,
 }: {
   product: Product;
   wishlisted?: boolean;
   onToggleWishlist?: (productId: string) => void;
   onOpenDetail: (productId: string) => void;
+  /** FEATURE_SPEC_BATCH2.md §2 — omit onToggleCompare to hide the control entirely (wishlist/registry/homepage grids don't show it, only PLPs do). */
+  comparing?: boolean;
+  onToggleCompare?: (productId: string) => void;
+  compareDisabled?: boolean;
 }) {
   const badge = product.isBestseller ? "BESTSELLER" : product.isNew ? "NEW" : null;
 
@@ -67,6 +74,19 @@ export function ProductCard({
         </p>
         <p className="mt-1 text-[13px] font-medium text-text-dark/70">{formatPrice(product.price)}</p>
       </button>
+
+      {onToggleCompare && (
+        <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-text-dark/50">
+          <input
+            type="checkbox"
+            checked={Boolean(comparing)}
+            disabled={!comparing && compareDisabled}
+            onChange={() => onToggleCompare(product.id)}
+            className="accent-olive-dark"
+          />
+          Compare
+        </label>
+      )}
     </div>
   );
 }

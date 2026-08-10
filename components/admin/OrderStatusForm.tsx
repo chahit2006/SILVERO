@@ -30,7 +30,6 @@ export function OrderStatusForm({
     return (
       <p className="text-sm text-text-dark/50">
         {STATUS_LABELS[currentStatus]} is a final status — no further updates from here.
-        {currentStatus === "DELIVERED" && " A delivered order coming back is a return request."}
       </p>
     );
   }

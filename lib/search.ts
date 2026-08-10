@@ -7,6 +7,7 @@ export async function searchProducts(q: string, take = 24) {
 
   return db.product.findMany({
     where: {
+      isArchived: false, // customer-facing — see lib/products.ts's buildWhere() for the same rule
       OR: [
         { name: { contains: q, mode: "insensitive" } },
         { description: { contains: q, mode: "insensitive" } },

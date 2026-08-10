@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAdminOrNull } from "@/lib/auth";
 import { ORDER_STATUSES, canTransition, STATUS_LABELS } from "@/lib/admin-orders";
+import { restockItems } from "@/lib/stock";
 
 // ADMIN_PANEL_SPEC.md §6 — "GET detail, PATCH status".
 
@@ -61,7 +62,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const order = await db.order.findUnique({
     where: { id: params.id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, items: { select: { productId: true, quantity: true } } },
   });
   if (!order) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
@@ -78,28 +79,37 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     );
   }
 
-  // Note what this deliberately does NOT do:
-  //  - Cancelling does not restock. Stock movement belongs to lib/stock.ts
-  //    (CLAUDE.md constraint #4) and releasing a lock from here would be a
-  //    second implementation of it. Flagged for the team — it pairs with the
-  //    abandoned-order stock-release cron already open in BUILD_STATUS.md.
-  //  - Cancelling does not refund. Spec §5 is explicit that refunds are
-  //    processed by hand in the Cashfree dashboard; no refund API is planned.
+  // Note what this deliberately does NOT do: cancelling does not refund.
+  // Spec §5 is explicit that refunds are processed by hand in the Cashfree
+  // dashboard; no refund API is planned. Restocking, on the other hand, DOES
+  // happen below — stock is decremented at /api/checkout time regardless of
+  // payment status (ARCHITECTURE.md), so PENDING, PAID, and SHIPPED orders
+  // all hold a real lock that a cancellation must release.
   let updated;
   try {
-    updated = await db.order.update({
-      where: {
-        id: order.id,
-        // Guards against two admins acting on the same order at once: the row
-        // must still hold the status the transition was validated against, or
-        // the update matches nothing and Prisma throws P2025.
-        status: order.status,
-      },
-      data: { status: parsed.data.status },
-      select: { id: true, status: true },
+    updated = await db.$transaction(async (tx) => {
+      const result = await tx.order.updateMany({
+        where: {
+          id: order.id,
+          // Guards against two admins acting on the same order at once: the row
+          // must still hold the status the transition was validated against, or
+          // this matches zero rows and the transaction is rolled back below.
+          status: order.status,
+        },
+        data: { status: parsed.data.status },
+      });
+      if (result.count === 0) {
+        throw new Error("STALE_ORDER");
+      }
+
+      if (parsed.data.status === "CANCELLED") {
+        await restockItems(tx, order.items);
+      }
+
+      return tx.order.findUniqueOrThrow({ where: { id: order.id }, select: { id: true, status: true } });
     });
   } catch (err) {
-    if ((err as { code?: string }).code === "P2025") {
+    if (err instanceof Error && err.message === "STALE_ORDER") {
       return NextResponse.json(
         { error: "This order changed while you were viewing it. Reload and try again." },
         { status: 409 }

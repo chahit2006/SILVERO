@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Only the pages that exist are listed. ADMIN_PANEL_SPEC.md §6 also specifies
-// /admin (dashboard), /admin/products, /admin/circle-orders,
-// /admin/corporate-leads, /admin/engraving-requests and /admin/returns — they
-// are deliberately absent from this nav until they are built, rather than
-// linked and dead. Add each one here as it lands.
-const LINKS = [{ href: "/admin/orders", label: "Orders" }];
+// Only the pages that exist are listed — add each one here as it lands.
+const LINKS = [
+  { href: "/admin", label: "Dashboard" },
+  { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/products", label: "Products" },
+  { href: "/admin/circle-orders", label: "Circle Orders" },
+  { href: "/admin/corporate-leads", label: "Corporate/Bulk" },
+  { href: "/admin/engraving-requests", label: "Engraving" },
+];
 
 export function AdminNav() {
   const pathname = usePathname();
@@ -17,8 +20,11 @@ export function AdminNav() {
     <nav className="border-b border-black/10">
       <ul className="flex gap-1 overflow-x-auto">
         {LINKS.map((link) => {
-          // startsWith, not ===, so /admin/orders/[id] keeps its tab lit.
-          const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+          // startsWith, not ===, so /admin/orders/[id] keeps its tab lit —
+          // except for "/admin" itself, which would otherwise match every
+          // other tab's pathname too (they all start with "/admin/").
+          const active =
+            link.href === "/admin" ? pathname === "/admin" : pathname === link.href || pathname.startsWith(`${link.href}/`);
           return (
             <li key={link.href} className="shrink-0">
               <Link

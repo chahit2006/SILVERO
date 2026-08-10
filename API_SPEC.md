@@ -5,7 +5,8 @@ All routes are Next.js API Routes under `app/api/`. Auth-gated routes must check
 ## Auth
 | Route | Method | Notes |
 |---|---|---|
-| `/api/auth/[...nextauth]` | GET/POST | NextAuth handler — login, session, logout |
+| `/api/auth/[...nextauth]` | GET/POST | NextAuth handler — login (MFA step 2: `{ mfaToken, otp }`), session, logout |
+| `/api/auth/mfa/request-otp` | POST | MFA step 1 — verifies `{ email, password }`, emails a 6-digit OTP, returns a 5-min `mfaToken` for step 2. Added 2026-08-09; applies to every login, customer and admin alike, since both share the one credentials provider. |
 
 ## Products & Categories
 | Route | Method | Notes |
@@ -39,7 +40,6 @@ All routes are Next.js API Routes under `app/api/`. Auth-gated routes must check
 | `/api/account/orders/[id]` | GET | Order detail + tracking |
 | `/api/account/addresses` | GET/POST/PATCH/DELETE | Address book |
 | `/api/account/wishlist` | GET/POST/DELETE | Wishlist |
-| `/api/account/returns` | GET/POST | Return requests |
 
 ## SILVERO Circle & Custom Order
 | Route | Method | Notes |

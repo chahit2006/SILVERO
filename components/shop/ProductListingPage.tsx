@@ -10,6 +10,7 @@ import { ProductCard } from "./ProductCard";
 import { ProductDetailDrawer } from "./ProductDetailDrawer";
 import { FilterPanel, EMPTY_FILTERS, type AdjustableFilters } from "./FilterPanel";
 import { useWishlist } from "@/components/providers/WishlistProvider";
+import { useCompare } from "@/components/providers/CompareProvider";
 import { XIcon } from "@/components/ui/icons";
 
 export type PLPConfig = {
@@ -55,6 +56,7 @@ export function ProductListingPage({
   initialTotal: number;
 }) {
   const { ids: wishlistIds, toggle: toggleWishlist } = useWishlist();
+  const { ids: compareIds, toggle: toggleCompare, isFull: compareFull } = useCompare();
 
   const [adjustable, setAdjustable] = useState<AdjustableFilters>(EMPTY_FILTERS);
   const [sort, setSort] = useState("featured");
@@ -212,6 +214,9 @@ export function ProductListingPage({
                   wishlisted={wishlistIds.has(product.id)}
                   onToggleWishlist={toggleWishlist}
                   onOpenDetail={setSelectedProductId}
+                  comparing={compareIds.includes(product.id)}
+                  onToggleCompare={toggleCompare}
+                  compareDisabled={compareFull}
                 />
               ))}
             </div>

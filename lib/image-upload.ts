@@ -7,37 +7,45 @@ import path from "path";
 
 // CLAUDE.md: "HEIC photo uploads (Custom Order form) must be converted
 // server-side before storage/display." SECURITY_CHECKLIST.md §4 — Custom
-// Order photos are "the highest-risk feature in this build." Every rule
-// there is implemented here:
+// Order photos are "the highest-risk feature in this build," and every rule
+// there is implemented in processImageUploads() below:
 //   - file type checked by actual signature, not extension/MIME
-//   - max 5 files, max 10MB each, enforced server-side
+//   - max files + max size enforced server-side, not just in the UI
 //   - random filenames, never the user-supplied name (path traversal)
-//   - stored under public/uploads/custom-orders/, served static-only
+//   - stored under public/uploads/<subdir>/, served static-only
 //   - every image is re-encoded through sharp, which strips EXIF/GPS
 //     metadata as a side effect (also true for the HEIC branch, since
 //     heic-convert's own encoder doesn't carry EXIF through either)
+//
+// Added 2026-08-09: generalized from a Custom-Order-only function so
+// /admin/products can reuse the exact same validation rigor for product
+// photos rather than a second, weaker copy of it.
 
-const MAX_FILES = 5;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/heic", "image/heif"]);
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "custom-orders");
 
 export class UploadValidationError extends Error {}
 
+type UploadOptions = {
+  subdir: string; // under public/uploads/
+  maxFiles: number;
+};
+
 /**
- * Validates and converts Custom Order photo uploads, returns the public
- * URLs to store on CustomOrder.photos. Throws UploadValidationError (safe
- * to show its message to the user) on any rule violation.
+ * Validates and converts image uploads, returns the public URLs to store.
+ * Throws UploadValidationError (safe to show its message to the user) on
+ * any rule violation.
  */
-export async function processCustomOrderPhotos(files: File[]): Promise<string[]> {
+export async function processImageUploads(files: File[], { subdir, maxFiles }: UploadOptions): Promise<string[]> {
   if (files.length === 0) {
     throw new UploadValidationError("Upload at least one photo.");
   }
-  if (files.length > MAX_FILES) {
-    throw new UploadValidationError(`Upload at most ${MAX_FILES} photos.`);
+  if (files.length > maxFiles) {
+    throw new UploadValidationError(`Upload at most ${maxFiles} photos.`);
   }
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
+  const uploadDir = path.join(process.cwd(), "public", "uploads", subdir);
+  await mkdir(uploadDir, { recursive: true });
 
   const urls: string[] = [];
 
@@ -68,9 +76,19 @@ export async function processCustomOrderPhotos(files: File[]): Promise<string[]>
     }
 
     const filename = `${randomUUID()}.jpg`;
-    await writeFile(path.join(UPLOAD_DIR, filename), jpegBuffer);
-    urls.push(`/uploads/custom-orders/${filename}`);
+    await writeFile(path.join(uploadDir, filename), jpegBuffer);
+    urls.push(`/uploads/${subdir}/${filename}`);
   }
 
   return urls;
+}
+
+/** Custom Order — PRD.md §4: up to 5 photos. */
+export async function processCustomOrderPhotos(files: File[]): Promise<string[]> {
+  return processImageUploads(files, { subdir: "custom-orders", maxFiles: 5 });
+}
+
+/** Admin product photos — ADMIN_PANEL_SPEC.md §3: "multi-upload". */
+export async function processProductPhotos(files: File[]): Promise<string[]> {
+  return processImageUploads(files, { subdir: "products", maxFiles: 8 });
 }

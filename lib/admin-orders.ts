@@ -30,8 +30,9 @@ export const ADMIN_FORBIDDEN_STATUSES: readonly OrderStatus[] = ["PENDING", "PAI
  *               spec §5 is explicit that no refund API is being integrated, so
  *               cancelling here does NOT move money).
  * - SHIPPED   → DELIVERED, or CANCELLED for a parcel lost/returned in transit.
- * - DELIVERED → terminal. A delivered order that comes back is a
- *               ReturnRequest (spec §5), not a status edit.
+ * - DELIVERED → terminal. There is no returns/exchange flow to hand a
+ *               delivered order back into (that feature was cut), so this
+ *               stays a dead end.
  * - CANCELLED → terminal. Reinstating would mean re-locking stock, which only
  *               lib/stock.ts may do — a fresh order is the correct answer.
  */

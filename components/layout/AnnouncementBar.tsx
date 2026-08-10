@@ -1,6 +1,6 @@
 // DESIGN_SYSTEM.md §4 "Header / Navigation" — announcement bar above nav.
 const MESSAGE =
-  "COMPLIMENTARY SHIPPING ACROSS INDIA | 925 STERLING SILVER | LIFETIME PLATING | EASY RETURNS";
+  "COMPLIMENTARY SHIPPING ACROSS INDIA | 925 STERLING SILVER | LIFETIME PLATING";
 
 export function AnnouncementBar() {
   return (

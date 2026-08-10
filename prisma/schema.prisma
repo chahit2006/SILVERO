@@ -60,6 +60,14 @@ model User {
   role           Role                 @default(CUSTOMER)
   createdAt      DateTime             @default(now())
 
+  // Added 2026-08-09 — email-OTP MFA (second factor after password, both
+  // customer and admin logins go through the same credentials provider, see
+  // lib/auth.ts). otpHash is bcrypt, never plaintext; cleared on successful
+  // verify, expiry, or hitting otpAttemptCount's 5-try limit.
+  otpHash         String?
+  otpExpiresAt    DateTime?
+  otpAttemptCount Int      @default(0)
+
   addresses      Address[]
   orders         Order[]
   wishlist       WishlistItem[]
@@ -70,6 +78,7 @@ model User {
   loyalty        LoyaltyTransaction[]
   registries     Registry[]
   cartItems      CartItem[]
+  engravingRequests EngravingRequest[]
 }
 
 model Address {
@@ -112,12 +121,18 @@ model Product {
   isNew        Boolean  @default(false)
   createdAt    DateTime @default(now())
   weightGrams  Int? // added 2026-08-08 (Phase 2) — Shiprocket rate/shipment calls need package weight; nullable, lib/shiprocket.ts falls back to a conservative default when unset
+  // Added 2026-08-09 (ADMIN_PANEL_SPEC.md §3) — soft-delete for products with
+  // existing OrderItem history, which a hard delete would break. Every
+  // customer-facing query (lib/products.ts, lib/search.ts) filters this out;
+  // admin queries see it and can filter on it explicitly.
+  isArchived   Boolean  @default(false)
 
-  cartItems     CartItem[]
-  orderItems    OrderItem[]
-  wishlistedBy  WishlistItem[]
-  recentViews   RecentlyViewed[]
-  registryItems RegistryItem[]
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  wishlistedBy      WishlistItem[]
+  recentViews       RecentlyViewed[]
+  registryItems     RegistryItem[]
+  engravingRequests EngravingRequest[]
 }
 
 model CartItem {
@@ -137,6 +152,12 @@ model CartItem {
   // RegistryItem purchased on real payment success, not before. See
   // app/api/registry/[shareSlug]/purchase.
   registryItemId String?
+  // Added 2026-08-09 (FEATURE_SPEC_BATCH2.md §3 "Build Your Own Stack") —
+  // shared across every CartItem created from one stack submission, so the
+  // cart drawer can render them as one grouped "stack box" instead of
+  // scattered individual lines. No FK — a stack isn't its own row anywhere,
+  // it only exists as this shared value.
+  stackId String?
 }
 
 model Order {
@@ -308,6 +329,12 @@ model Appointment {
   service      String // styling consultation, engraving, try-on
   date         DateTime
   status       String   @default("CONFIRMED")
+  // Added 2026-08-09 (FEATURE_SPEC_BATCH2.md §4) — the form needs a "nearest
+  // store" picker, but the original model had nowhere to record the answer.
+  // No Store model/table exists (Store Locator is out of scope, PRD.md §1) —
+  // this stores lib/stores.ts's static store id as a plain string, not a
+  // relation.
+  storeId String
 }
 
 model CorporateLead {
@@ -322,12 +349,19 @@ model CorporateLead {
   createdAt DateTime @default(now())
 }
 
-model ReturnRequest {
-  id           String   @id @default(cuid())
-  orderId      String
-  itemIds      String[]
-  reason       String
-  refundMethod String
-  status       String   @default("REQUESTED") // REQUESTED, APPROVED, SHIPPED, RECEIVED, REFUNDED
-  createdAt    DateTime @default(now())
+// Added 2026-08-09 — FEATURE_SPEC_BATCH2.md §5 "Custom Engraving" and
+// ADMIN_PANEL_SPEC.md §5's /admin/engraving-requests queue both depend on
+// this. Already fully specced in DATA_MODEL.md; this is that spec applied —
+// not gated to Circle (FEATURE_SPEC_BATCH2.md §5: "open to any customer").
+model EngravingRequest {
+  id                String   @id @default(cuid())
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id])
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id])
+  message           String // the hidden/engraved message text
+  placement         String // where on the piece, e.g. "inside band"
+  contactPreference String
+  status            String   @default("REQUESTED") // REQUESTED, CONFIRMED, IN_PRODUCTION, SHIPPED
+  createdAt         DateTime @default(now())
 }

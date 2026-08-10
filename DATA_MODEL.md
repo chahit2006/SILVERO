@@ -2,6 +2,8 @@
 
 Prisma schema covering every entity implied by the IA. Beginner-friendly starting point — extend fields as features get built, don't feel obligated to build every relation on day one.
 
+> **Sync note (2026-08-09):** this file had drifted from `prisma/schema.prisma` — several fields added during Phase 2 (Order's contact/shipping snapshot, GiftCard's payment fields, `registryItemId`, `Product.weightGrams`, `RecentlyViewed.id`) were missing here even though they were live in the database. `schema.prisma`'s own header says this file is the source of truth, but in practice the schema is what's deployed and tested — treat *it* as ground truth if the two ever disagree again, and fix this file to match, not the other way around.
+
 ```prisma
 // schema.prisma
 
@@ -43,6 +45,10 @@ enum CircleQualification {
   PAID
 }
 
+// ADMIN_PANEL_SPEC.md §1. Three values, and the check is always `=== 'ADMIN'`
+// exactly — never `!== 'CUSTOMER'`, which would let a CIRCLE member through.
+// No self-serve path to ADMIN: /api/auth/register always writes the CUSTOMER
+// default, and admins are promoted out-of-band via prisma/promote-admin.ts.
 enum Role {
   CUSTOMER
   CIRCLE
@@ -50,25 +56,33 @@ enum Role {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  phone         String?
-  passwordHash  String
-  firstName     String
-  lastName      String
-  role          Role      @default(CUSTOMER)
-  createdAt     DateTime  @default(now())
+  id             String               @id @default(cuid())
+  email          String               @unique
+  phone          String?
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           Role                 @default(CUSTOMER)
+  createdAt      DateTime             @default(now())
 
-  addresses     Address[]
-  orders        Order[]
-  wishlist      WishlistItem[]
+  // Added 2026-08-09 — email-OTP MFA, second factor after password for both
+  // customer and admin logins (lib/auth.ts). otpHash is bcrypt, cleared on
+  // successful verify, expiry, or hitting otpAttemptCount's 5-try limit.
+  otpHash         String?
+  otpExpiresAt    DateTime?
+  otpAttemptCount Int      @default(0)
+
+  addresses      Address[]
+  orders         Order[]
+  wishlist       WishlistItem[]
   recentlyViewed RecentlyViewed[]
-  circle        CircleMembership?
-  customOrders  CustomOrder[]
-  referral      Referral?
-  loyalty       LoyaltyTransaction[]
-  registries    Registry[]
-  cartItems     CartItem[]
+  circle         CircleMembership?
+  customOrders   CustomOrder[]
+  referral       Referral?
+  loyalty        LoyaltyTransaction[]
+  registries     Registry[]
+  cartItems      CartItem[]
+  engravingRequests EngravingRequest[]
 }
 
 model Address {
@@ -99,7 +113,7 @@ model Product {
   category      Category @relation(fields: [categoryId], references: [id])
   name          String
   slug          String   @unique
-  price         Int                // paise or rupees — pick one convention, be consistent
+  price         Int                // rupees, whole integers — see "Notes" below
   images        String[]
   material      String?
   stone         String?
@@ -110,12 +124,14 @@ model Product {
   isBestseller  Boolean  @default(false)
   isNew         Boolean  @default(false)
   createdAt     DateTime @default(now())
+  weightGrams   Int?               // Shiprocket rate/shipment calls need package weight; nullable, lib/shiprocket.ts falls back to a conservative default when unset
+  isArchived    Boolean  @default(false) // soft-delete (ADMIN_PANEL_SPEC.md §3) — a hard delete would break OrderItem history. Customer-facing queries filter this out; admin queries see and can filter on it.
 
-  cartItems     CartItem[]
-  orderItems    OrderItem[]
-  wishlistedBy  WishlistItem[]
-  recentViews   RecentlyViewed[]
-  registryItems RegistryItem[]
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  wishlistedBy      WishlistItem[]
+  recentViews       RecentlyViewed[]
+  registryItems     RegistryItem[]
   engravingRequests EngravingRequest[]
 }
 
@@ -131,23 +147,42 @@ model CartItem {
   isGift     Boolean  @default(false)
   giftWrap   String?              // "signature" | "premium"
   giftNote   String?
-  stackId    String?              // groups items built via "Build Your Own Stack" into one visual card in cart
+  registryItemId String?          // set when added via a registry share link — carried to OrderItem so the Cashfree webhook can mark the RegistryItem purchased on real payment success, not before. See app/api/registry/[shareSlug]/purchase.
+  stackId    String?              // groups items built via "Build Your Own Stack" into one visual card in cart (FEATURE_SPEC_BATCH2.md §3)
 }
 
 model Order {
-  id                  String      @id @default(cuid())
-  userId              String?
-  user                User?       @relation(fields: [userId], references: [id])
-  addressId           String?
-  status              OrderStatus @default(PENDING)
-  subtotal            Int
+  id                   String      @id @default(cuid())
+  userId               String?
+  user                 User?       @relation(fields: [userId], references: [id])
+  addressId            String?     // optional pointer to a saved Address the shopper picked at checkout — NOT the source of truth, see snapshot fields below
+  status               OrderStatus @default(PENDING)
+  subtotal             Int
   shipping             Int         @default(0)
-  total               Int
-  cashfreeOrderId     String?     @unique
+  total                Int
+  cashfreeOrderId      String?     @unique
   shiprocketShipmentId String?
-  createdAt           DateTime    @default(now())
+  createdAt            DateTime    @default(now())
 
-  items               OrderItem[]
+  // Address.userId is required, so a guest checkout (guest checkout is
+  // always available) has no way to own an Address row. Snapshotting
+  // contact + shipping fields directly on Order also means a later edit to
+  // a saved address book entry can't retroactively change where an
+  // already-placed order ships — standard e-commerce practice, not just a
+  // guest workaround.
+  contactEmail     String
+  contactPhone     String
+  contactFirstName String
+  contactLastName  String
+  shippingLine1    String
+  shippingLine2    String?
+  shippingCity     String
+  shippingState    String
+  shippingPincode  String
+  shippingCountry  String @default("India")
+  deliveryMethod   String @default("STANDARD") // "STANDARD" | "EXPRESS"
+
+  items OrderItem[]
 }
 
 model OrderItem {
@@ -159,6 +194,7 @@ model OrderItem {
   size      String?
   quantity  Int
   price     Int              // price at time of purchase, not live product price
+  registryItemId String?     // see CartItem.registryItemId
 }
 
 model WishlistItem {
@@ -171,6 +207,7 @@ model WishlistItem {
 }
 
 model RecentlyViewed {
+  id        String   @id @default(cuid())
   userId    String?
   sessionId String?
   productId String
@@ -237,6 +274,22 @@ model GiftCard {
   message         String?
   deliveryDate    DateTime?
   purchasedByUserId String?
+
+  // Buying a gift card is a real payment — GiftCard.id doubles as the
+  // Cashfree order_id, same pattern as Order, so the row must exist
+  // (unpaid) before the redirect and the webhook flips isPaid. The
+  // code/balance aren't usable/shown as active until isPaid is true.
+  isPaid          Boolean @default(false)
+  buyerEmail      String  @default("")
+  buyerPhone      String  @default("")
+  // Physical variant only ("both digital and physical (shipped) variants")
+  // — null for digital.
+  shippingLine1   String?
+  shippingLine2   String?
+  shippingCity    String?
+  shippingState   String?
+  shippingPincode String?
+  shippingCountry String? @default("India")
 }
 
 model Registry {
@@ -267,6 +320,7 @@ model Appointment {
   service       String    // styling consultation, engraving, try-on
   date          DateTime
   status        String    @default("CONFIRMED")
+  storeId       String    // lib/stores.ts static id — no Store model (Store Locator is out of scope, PRD.md §1)
 }
 
 model CorporateLead {
@@ -293,21 +347,13 @@ model EngravingRequest {
   status             String   @default("REQUESTED")   // REQUESTED, CONFIRMED, IN_PRODUCTION, SHIPPED
   createdAt          DateTime @default(now())
 }
-
-model ReturnRequest {
-  id            String   @id @default(cuid())
-  orderId       String
-  itemIds       String[]
-  reason        String
-  refundMethod  String
-  status        String   @default("REQUESTED")   // REQUESTED, APPROVED, SHIPPED, RECEIVED, REFUNDED
-  createdAt     DateTime @default(now())
-}
 ```
 
 ## Notes
 
 - **Money as integers.** Store rupees as whole integers (no paise) unless the client needs paise precision — simpler for a beginner team, avoids floating-point bugs.
 - **Guest carts** use a `sessionId` cookie instead of `userId`; merge into the user's cart on login.
-- **Stock locking** (see `ARCHITECTURE.md`) happens in the same transaction that creates the `Order` + decrements `Product.stock` — don't decrement stock anywhere else.
+- **Stock locking** (see `ARCHITECTURE.md` and `lib/stock.ts`) happens in the same transaction that creates the `Order` + decrements `Product.stock` — don't decrement stock anywhere else. Restocking (order cancellation, a failed payment) goes through the same file's `restockItems()` for the identical reason.
 - **HEIC photo uploads** (Custom Order) need server-side conversion to JPG before storing the URL — don't store raw HEIC, most browsers can't display it.
+- **`ReturnRequest` removed 2026-08-09** (migration `20260809125745_remove_return_request`) — the Returns & Exchanges feature was cut; no returns/refund model exists in this schema anymore.
+- **`Order.paymentStatus` does not exist**, despite `ADMIN_PANEL_SPEC.md` §2/§4 referring to one — payment is folded into `OrderStatus` (`PAID` and everything after it means paid). `lib/admin-orders.ts` derives a label from `status` as a stopgap; it cannot distinguish "cancelled before paying" from "paid, then cancelled." A real field, written only by the Cashfree webhook, is needed before refund reconciliation — flagged, not yet added.

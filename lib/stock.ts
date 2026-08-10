@@ -60,3 +60,24 @@ export async function lockAndDecrementStock(tx: Prisma.TransactionClient, items:
     });
   }
 }
+
+/**
+ * The inverse of lockAndDecrementStock() — releases stock back for an order
+ * that will never be fulfilled (a failed payment, or an admin cancellation).
+ * Added 2026-08-09: the Cashfree webhook's PAYMENT_FAILED branch used to do
+ * this increment inline instead of calling into this file, which quietly
+ * violated the "exactly one place" rule above. Both the webhook and
+ * app/api/admin/orders/[id] call this now.
+ *
+ * No row-locking here — incrementing stock back has no race to protect
+ * against the way decrementing it does (nothing can oversell by *gaining*
+ * stock), so a plain update inside the caller's transaction is enough.
+ */
+export async function restockItems(tx: Prisma.TransactionClient, items: StockLineItem[]) {
+  for (const item of items) {
+    await tx.product.update({
+      where: { id: item.productId },
+      data: { stock: { increment: item.quantity } },
+    });
+  }
+}

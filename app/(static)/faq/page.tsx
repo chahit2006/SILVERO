@@ -6,7 +6,6 @@ import { ChevronDownIcon } from "@/components/ui/icons";
 const FAQS = [
   { q: "Is your jewellery real silver?", a: "Yes — every piece is 925 sterling silver (92.5% pure), hallmarked. See our Silver Guide for details." },
   { q: "Do you offer free shipping?", a: "Yes, complimentary standard shipping across India on every order. Express delivery is available for a fee." },
-  { q: "What's your return policy?", a: "7-day returns on unworn items in original packaging. See our Returns page for full details." },
   { q: "Does plating wear off?", a: "Gold plating on 925 silver can wear with years of daily use — Circle members get free lifetime re-plating." },
   { q: "How do I find my ring/bracelet/necklace size?", a: "See our Size Guides — Ring Size, Bracelet Size, and Necklace Length." },
   { q: "Can I order a custom piece?", a: "Custom (one-of-one) orders are available to SILVERO Circle members." },

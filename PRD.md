@@ -52,7 +52,7 @@ Everything below is organized so you can build the "must-have" core first and la
 `/cart` (drawer, not a page) · `/checkout` · `/order/[id]/confirmation`
 
 ### Account
-`/account/login` · `/register` · `/forgot-password` · `/account` (dashboard) · `/account/orders` (+ `[id]`, `[id]/tracking`) · `/account/invoices` · `/account/returns` (+ `/new`) · `/account/wishlist` · `/account/recently-viewed` · `/account/addresses` · `/account/payments` · `/account/circle` · `/account/circle/custom-order` · `/account/referrals` · `/account/loyalty` · `/account/preferences`
+`/account/login` · `/register` · `/forgot-password` · `/account` (dashboard) · `/account/orders` (+ `[id]`, `[id]/tracking`) · `/account/invoices` · `/account/wishlist` · `/account/recently-viewed` · `/account/addresses` · `/account/payments` · `/account/circle` · `/account/circle/custom-order` · `/account/referrals` · `/account/loyalty` · `/account/preferences`
 
 ### Guides (SEO/education, all same template)
 `/guides/ring-size` · `/bracelet-size` · `/necklace-length` · `/care` · `/silver` · `/hallmark` · `/materials` · `/styling` · `/occasions`
@@ -67,7 +67,7 @@ Everything below is organized so you can build the "must-have" core first and la
 `/shop-the-look` · `/build-your-stack` · `/quiz` · `/compare` · `/unboxing` · `/circle` (public membership landing) · `/circle/custom-order` (public — redirects logged-in Circle members to `/account/circle/custom-order`, prompts non-members/guests to join)
 
 ### About & Static
-`/about` (+ `/story`, `/craft`, `/sustainability`) · `/privacy` · `/terms` · `/shipping` · `/returns` · `/cookies` · `/accessibility` · `/contact` · `/faq` · `/search` · `/404`
+`/about` (+ `/story`, `/craft`, `/sustainability`) · `/privacy` · `/terms` · `/shipping` · `/cookies` · `/accessibility` · `/contact` · `/faq` · `/search` · `/404`
 
 ## 3. Brand & Design Tokens (from IA §2, §15)
 
@@ -98,7 +98,7 @@ Everything below is organized so you can build the "must-have" core first and la
 
 ## 5. Data Entities
 
-See `DATA_MODEL.md` for the full Prisma schema. Summary: User, Address, Category, Product, CartItem, Order/OrderItem, Wishlist, RecentlyViewed, CircleMembership, CustomOrder, Referral, LoyaltyTransaction, GiftCard, Registry/RegistryItem, Appointment, CorporateLead, Return.
+See `DATA_MODEL.md` for the full Prisma schema. Summary: User, Address, Category, Product, CartItem, Order/OrderItem, Wishlist, RecentlyViewed, CircleMembership, CustomOrder, Referral, LoyaltyTransaction, GiftCard, Registry/RegistryItem, Appointment, CorporateLead. (Returns & Exchanges — and its `Return`/`ReturnRequest` model — was built and then removed 2026-08-09; see `BUILD_STATUS.md`.)
 
 ## 6. Non-Functional Requirements (carried over, still apply)
 

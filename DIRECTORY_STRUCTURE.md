@@ -52,8 +52,6 @@ silvero-925/
 │   │   ├── orders/[id]/page.tsx
 │   │   ├── orders/[id]/tracking/page.tsx
 │   │   ├── invoices/page.tsx
-│   │   ├── returns/page.tsx
-│   │   ├── returns/new/page.tsx
 │   │   ├── wishlist/page.tsx
 │   │   ├── recently-viewed/page.tsx
 │   │   ├── addresses/page.tsx
@@ -105,7 +103,6 @@ silvero-925/
 │   │   ├── privacy/page.tsx
 │   │   ├── terms/page.tsx
 │   │   ├── shipping/page.tsx
-│   │   ├── returns/page.tsx
 │   │   ├── cookies/page.tsx
 │   │   ├── accessibility/page.tsx
 │   │   ├── contact/page.tsx
@@ -131,7 +128,6 @@ silvero-925/
 │       ├── account/orders/[id]/route.ts
 │       ├── account/addresses/route.ts
 │       ├── account/wishlist/route.ts
-│       ├── account/returns/route.ts
 │       ├── circle/join/route.ts
 │       ├── circle/status/route.ts
 │       ├── circle/custom-order/route.ts
@@ -149,7 +145,7 @@ silvero-925/
 │   ├── layout/                           # Header, Footer, AnnouncementBar, SearchOverlay
 │   ├── shop/                             # CategoryPLP, ProductCard, ProductDetailDrawer, CartDrawer
 │   ├── checkout/                         # CheckoutSteps, AddressForm, PaymentStep
-│   ├── account/                          # AccountSidebar, OrderCard, ReturnFlow
+│   ├── account/                          # AccountSidebar, OrderCard
 │   ├── circle/                           # CircleGate, CustomOrderForm
 │   ├── gifting/                          # GiftCardForm, RegistryBuilder
 │   └── premium/                          # QuizFlow, CompareTable, StackBuilder, ShopTheLook

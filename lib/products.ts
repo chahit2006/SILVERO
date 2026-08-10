@@ -36,6 +36,11 @@ function buildWhere(filters: ProductFilters): Prisma.ProductWhereInput {
   };
 
   return {
+    // Every customer-facing product query goes through this function — the
+    // one place a soft-deleted product needs to disappear from the storefront.
+    // Admin's own product list (app/admin/products) queries Prisma directly,
+    // specifically so it can still see (and un-archive) archived products.
+    isArchived: false,
     ...(Object.keys(category).length ? { category } : {}),
     ...(filters.material?.length ? { material: { in: filters.material } } : {}),
     ...(filters.stone?.length ? { stone: { in: filters.stone } } : {}),

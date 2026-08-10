@@ -11,7 +11,7 @@ Snapshot as of 2026-08-08. Keep this updated as work continues — it's the fast
 - Product detail drawer pattern (no standalone PDP, per PRD)
 - Cart — server-persisted, guest cookie merges into account on login
 - Auth — NextAuth credentials, real register/login/session, bcrypt hashing
-- Account shell — dashboard, orders+tracking, invoices, returns, wishlist, recently-viewed, addresses, payments (shell), circle (shell then, now real), referrals, loyalty, preferences (shell)
+- Account shell — dashboard, orders+tracking, invoices, wishlist, recently-viewed, addresses, payments (shell), circle (shell then, now real), referrals, loyalty, preferences (shell)
 - 9 guide pages (shared template) + all static/about/search pages
 
 ### Phase 2 — Core Commerce
@@ -32,30 +32,33 @@ Snapshot as of 2026-08-08. Keep this updated as work continues — it's the fast
 - Registry — create, public share-link view, guest purchase (goes through **real** checkout + webhook, not a fake "mark purchased" button)
 - 4 gifting guides + hub, wrapping page, build-your-gift bundler
 
-### Admin Panel — step 1 of the `ADMIN_PANEL_SPEC.md` §8 priority order
-- `Role` enum (`CUSTOMER`/`CIRCLE`/`ADMIN`) + `User.role` — applied to `prisma/schema.prisma`, migration `20260808140000_admin_role`, backfills existing Circle members to `CIRCLE`
+### Admin Panel — complete, per `ADMIN_PANEL_SPEC.md`
+- `Role` enum (`CUSTOMER`/`CIRCLE`/`ADMIN`) + `User.role` — migration `20260808140000_admin_role`, backfills existing Circle members to `CIRCLE`
 - `requireAdmin()` / `getAdminOrNull()` in `lib/auth.ts` — role read from the DB per request (never from the JWT, so promote/demote takes effect immediately), `=== "ADMIN"` exactly, non-admins redirected to `/account` and API routes answer 404
 - `prisma/promote-admin.ts` — promotes an existing account; no code path anywhere creates an admin with a password
-- `/admin/orders` (list, filter by status, counts) + `/admin/orders/[id]` (items, customer, shipping, payment, shipment, manual status update)
-- `/api/admin/orders` + `/api/admin/orders/[id]` (GET, PATCH status) — each re-checks admin independently of the page gate
-- Transition rules live only in `lib/admin-orders.ts`; `PENDING`/`PAID` are unreachable from any admin request (webhook-only, CLAUDE.md #6)
-- **Not yet built:** `/admin` dashboard, `/admin/products`, and the four queues — awaiting sign-off before starting
+- **Navigation**: "Admin Panel" link in the account sidebar for admins only — there was previously no way to reach `/admin` without typing the URL
+- **Dashboard** (`/admin`) — revenue/orders-today/pending/low-stock cards, 7/30/90-day revenue line chart, top-5-products bar chart, category-revenue pie chart (`recharts`), all from `/api/admin/stats`
+- **Products** (`/admin/products` + `/new` + `/[id]/edit`) — list with category/stock/archived filters, shared add/edit form, image upload reusing Custom Order's exact validation rigor (signature check, size/count limits, random filenames — see `lib/image-upload.ts`'s `processImageUploads()`), soft-delete via `Product.isArchived` (never a hard delete — preserves `OrderItem` history). Customer-facing queries (`lib/products.ts`, `lib/search.ts`, `/api/products/[id]`) all exclude archived products now.
+- **3 queues**: `/admin/circle-orders` (status + quotation), `/admin/corporate-leads` (view, filter by type), `/admin/engraving-requests` (status) — `/admin/orders` was already done
+- `EngravingRequest` model applied (was documented in `DATA_MODEL.md` but never reached `schema.prisma`)
+- **Bug fixed**: cancelling an order (webhook failure *or* admin action) now actually restocks — `lib/stock.ts` gained `restockItems()`, and the webhook's old inline increment (a quiet violation of CLAUDE.md #4's "exactly one place") was replaced with a call to it
 
-### Batch 2 — Feature 1 of 5 (`FEATURE_SPEC_BATCH2.md` Build Order)
-- **Advanced PLP filters** — much of this already existed (category/material/stone/occasion checkboxes, active tags, clear-all, mobile sheet, and `/api/products` already accepting the filter params). What was added:
-  - Dual-thumb **price range slider** (`components/shop/PriceRangeSlider.tsx`) replacing the preset bands, ends sourced from the live catalogue via `getPriceBounds()`; commits on release, not mid-drag. Native inputs, no new dependency
-  - Mobile sheet now edits a **draft + explicit "Apply filters"**; desktop sidebar still applies live
-  - `/api/products` accepts `priceMin`/`priceMax` as aliases for the canonical `minPrice`/`maxPrice`, swaps inverted ranges, ignores non-numeric/negative values
-  - **Bug fixed:** `category` and `gender` were spread as two separate `category:` keys in the same Prisma `where`, so gender overwrote category — every category checkbox on `/shop/nar` and `/shop/nari` was silently ignored. Now merged into one nested filter
-- **Not yet built:** Batch 2 features 2–5 (Compare, Build Your Own Stack, Corporate/Bulk/Engraving forms, Book Appointment) — awaiting sign-off one at a time
+### Batch 2 — 4 of 5 features done (`FEATURE_SPEC_BATCH2.md` Build Order)
+1. **Advanced PLP filters** — ✅ done (dual-thumb price slider, category/material/stone/occasion checkboxes, mobile draft+apply, the category/gender filter-collision bug fixed)
+2. **Compare** — ✅ done — `CompareProvider` (session-storage while building a selection across PLPs) + a "Compare" checkbox on PLP product cards + a floating `CompareBar` + `/compare?ids=` (URL-shareable, stateless, no new DB model, per spec)
+3. **Build Your Own Stack** — ✅ done — `CartItem.stackId` applied (was documented, not implemented), presets as JSON config (`lib/stack-presets.ts`, per the spec's own "JSON is faster to ship" call), `/api/stacks/presets` (resolves category slots to real in-stock products), `/api/stacks/[id]/add-to-cart`, `/build-your-stack` page, and the cart drawer now visually groups stack items into one "stack box" instead of scattered lines
+4. **Book Appointment** — ✅ done — `/appointment` page + `/api/appointments` (rate-limited). `Appointment.storeId` was added (the model had nowhere to record which store), backed by a hardcoded `lib/stores.ts` list rather than a real Store model, since Store Locator itself is explicitly out of scope (`PRD.md` §1) — swap the placeholder addresses for real ones before launch
+5. **Corporate Gifting / Bulk / Custom Engraving forms** — ⚠️ **admin side only, not customer-facing yet.** The admin queues (`/admin/corporate-leads`, `/admin/engraving-requests`) exist and the `EngravingRequest` model is applied, but there's still no `/corporate`, `/corporate/bulk`, or `/services/engraving` page, and no public `POST /api/corporate-leads` or `/api/engraving-requests` route — so nothing can actually populate those queues yet. This is the one piece of Batch 2 left.
 
-**Total: 75 pages, 28 API routes, 175 source files. Every stage verified against a real seeded local Postgres — not just build-clean — including a genuinely signed Cashfree webhook payload for the payment-confirmation paths.**
+**Total: 88 pages, 40 API routes, 240 source files. Every stage verified against a real seeded local Postgres — not just build-clean — including a genuinely signed Cashfree webhook payload for the payment-confirmation paths, and a real product-archive round trip (create → visible in shop → archived → gone from shop + 404s direct lookup → still visible to admin).**
 
 ## Not done
 
-**Explicitly skipped (your call, undocumented-phase items):** Quiz, Compare, Build-Your-Stack, Appointments, Corporate/Bulk, standalone `/shop-the-look` and `/unboxing` pages.
+**Removed 2026-08-09:** Returns & Exchanges — the self-service `/account/returns` (+`/new`) flow, the `/admin/returns` queue, the public `/returns` policy page, and the `ReturnRequest` model (migration `20260809125745_remove_return_request`) were all built and then removed at the client's request. No returns/refund feature ships in this build; order cancellation still exists and still notes that refunds are processed by hand in the Cashfree dashboard (`ADMIN_PANEL_SPEC.md` §4/§5, `lib/admin-orders.ts`).
 
-> **Update 2026-08-08:** these 5 are now speced in `FEATURE_SPEC_BATCH2.md` and moving into active development. Quiz was replaced with advanced PLP filters per client direction; standalone `/shop-the-look` and `/unboxing` remain cut.
+**Explicitly skipped, still cut:** standalone `/shop-the-look` and `/unboxing` pages (Quiz was replaced with Advanced PLP Filters per client direction, not skipped).
+
+> **Update 2026-08-09:** Compare, Build Your Own Stack, and Book Appointment (Batch 2 features 2–4) are now built — see the Batch 2 section above. Only feature 5 (the customer-facing Corporate/Bulk/Engraving forms) remains from that original "skipped" list.
 
 **Phase 3, not started:** full QA pass, security review of gated/payment flows, Hostinger deployment, monitoring setup, handover.
 
@@ -73,7 +76,7 @@ Snapshot as of 2026-08-08. Keep this updated as work continues — it's the fast
 | Placeholder product photography | `prisma/seed.ts`, `public/placeholders/` | No real photography exists yet |
 | "As Seen In" press logos | `components/home/AsSeenIn.tsx` | Unverified — don't ship without confirming real press mentions |
 | ~~No admin role/panel~~ | — | Closed 2026-08-08 — `ADMIN_PANEL_SPEC.md` written, role gate + `/admin/orders` built (see above) |
-| Cancelling an order doesn't restock it | `app/api/admin/orders/[id]/route.ts` | Stock movement belongs only in `lib/stock.ts` (CLAUDE.md #4) — pairs with the abandoned-order stock-release cron gap above, fix both together |
+| ~~Cancelling an order doesn't restock it~~ | — | Closed 2026-08-09 — `lib/stock.ts` gained `restockItems()`, used by both the webhook's PAYMENT_FAILED branch (previously an inline increment, now consolidated per CLAUDE.md #4) and the admin cancel path. The abandoned-`PENDING`-order cron gap above is still open — this only fixes the manual/webhook cancel paths, not orders nobody ever acts on. |
 | No `Order.paymentStatus` | `ADMIN_PANEL_SPEC.md` §2/§4 vs `DATA_MODEL.md` | Spec assumes a field that doesn't exist; payment is derived from `OrderStatus` in `lib/admin-orders.ts` and can't tell a cancelled-unpaid order from a cancelled-refunded one |
 | `recharts` not installed | `package.json` | `ADMIN_PANEL_SPEC.md` §2 says it's "already in your allowed frontend libraries" — it isn't in `package.json`; needs adding before the dashboard charts |
 

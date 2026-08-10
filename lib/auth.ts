@@ -1,12 +1,11 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "./db";
-import { rateLimit } from "./rate-limit";
 import { CART_COOKIE } from "./constants";
+import { verifyMfaToken, compareOtp, OTP_MAX_ATTEMPTS } from "./mfa";
 
 // TECH_STACK.md — NextAuth, credentials-based. Membership (Circle) checks are
 // a separate, Phase 2 concern layered on top of this; this file only
@@ -19,23 +18,58 @@ export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
+      // MFA step 2 only. Step 1 (email + password) now lives at
+      // POST /api/auth/mfa/request-otp — this provider never sees a raw
+      // password, only the short-lived "mfa_pending" JWT that route issued
+      // plus the 6-digit code sent by email. See lib/mfa.ts for the shared
+      // token/OTP logic both sides use.
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        mfaToken: { label: "MFA Token", type: "text" },
+        otp: { label: "One-Time Code", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.mfaToken || !credentials?.otp) return null;
 
-        const email = credentials.email.toLowerCase().trim();
+        const userId = await verifyMfaToken(credentials.mfaToken);
+        if (!userId) return null; // bad signature, expired, or wrong purpose
 
-        // SECURITY_CHECKLIST.md §1 — 5 attempts / 15 min per email, blocks brute-force.
-        if (!rateLimit(`login:${email}`, 5, 15 * 60 * 1000)) return null;
+        const user = await db.user.findUnique({ where: { id: userId } });
+        if (!user || !user.otpHash || !user.otpExpiresAt) return null;
 
-        const user = await db.user.findUnique({ where: { email } });
-        if (!user) return null;
+        if (user.otpExpiresAt.getTime() < Date.now()) {
+          // Expired — invalidate so a late guess can't still land, and force
+          // a fresh request-otp call for the next attempt.
+          await db.user.update({
+            where: { id: user.id },
+            data: { otpHash: null, otpExpiresAt: null, otpAttemptCount: 0 },
+          });
+          return null;
+        }
 
-        const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!valid) return null;
+        if (user.otpAttemptCount >= OTP_MAX_ATTEMPTS) {
+          // Already exhausted on an earlier request — invalidate the dead
+          // code outright so it can't keep being probed.
+          await db.user.update({
+            where: { id: user.id },
+            data: { otpHash: null, otpExpiresAt: null, otpAttemptCount: 0 },
+          });
+          return null;
+        }
+
+        const valid = await compareOtp(credentials.otp, user.otpHash);
+        if (!valid) {
+          await db.user.update({
+            where: { id: user.id },
+            data: { otpAttemptCount: { increment: 1 } },
+          });
+          return null;
+        }
+
+        // Success — clear the used code so it can never be replayed.
+        await db.user.update({
+          where: { id: user.id },
+          data: { otpHash: null, otpExpiresAt: null, otpAttemptCount: 0 },
+        });
 
         return {
           id: user.id,

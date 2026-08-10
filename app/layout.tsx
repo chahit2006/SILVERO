@@ -5,6 +5,8 @@ import { Footer } from "@/components/layout/Footer";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { CartProvider } from "@/components/providers/CartProvider";
 import { WishlistProvider } from "@/components/providers/WishlistProvider";
+import { CompareProvider } from "@/components/providers/CompareProvider";
+import { CompareBar } from "@/components/shop/CompareBar";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -33,9 +35,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SessionProvider>
           <WishlistProvider>
             <CartProvider>
-              <Header />
-              <main>{children}</main>
-              <Footer />
+              <CompareProvider>
+                <Header />
+                <main>{children}</main>
+                <Footer />
+                <CompareBar />
+              </CompareProvider>
             </CartProvider>
           </WishlistProvider>
         </SessionProvider>

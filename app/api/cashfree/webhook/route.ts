@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { verifyCashfreeWebhookSignature, type CashfreeWebhookPayload } from "@/lib/cashfree";
 import { createShipment } from "@/lib/shiprocket";
 import { parseCircleJoinOrderId } from "@/lib/circle";
+import { restockItems } from "@/lib/stock";
 
 // POST /api/cashfree/webhook — API_SPEC.md / SECURITY_CHECKLIST.md §5 /
 // CLAUDE.md constraint #6: THE ONLY place an order gets marked "paid."
@@ -110,11 +111,14 @@ export async function POST(req: Request) {
     }
   } else if (payload.type === "PAYMENT_FAILED_WEBHOOK" || paymentStatus === "FAILED") {
     // ARCHITECTURE.md checkout flow step 7 — release the stock lock taken
-    // at /api/checkout time.
+    // at /api/checkout time. Goes through lib/stock.ts's restockItems(),
+    // not an inline increment — CLAUDE.md #4, same reason the decrement side
+    // lives in exactly one place.
     await db.$transaction(async (tx) => {
-      for (const item of order.items) {
-        await tx.product.update({ where: { id: item.productId }, data: { stock: { increment: item.quantity } } });
-      }
+      await restockItems(
+        tx,
+        order.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+      );
       await tx.order.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
     });
   }

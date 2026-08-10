@@ -63,7 +63,8 @@ Landing page after admin login. Four sections:
 | `/admin/circle-orders` | `CustomOrder` | Approve/reject Circle custom orders, update status through the pipeline (`SUBMITTED → ... → SHIPPED`), attach quotation details |
 | `/admin/corporate-leads` | `CorporateLead` | View Corporate + Bulk leads in one list, filterable by `type` |
 | `/admin/engraving-requests` | `EngravingRequest` | View/update engraving request status |
-| `/admin/returns` | `ReturnRequest` | Review return requests, update status, process refund (manually via Cashfree dashboard — no auto-refund API integration planned) |
+
+> **Removed 2026-08-09:** `/admin/returns` (`ReturnRequest`) was built per this spec and then cut along with the rest of the Returns & Exchanges feature — see `BUILD_STATUS.md`. Order cancellation still notes that refunds are processed by hand in the Cashfree dashboard (§4 above); that note is unrelated to this removed queue.
 
 ## 6. Directory Additions
 
@@ -79,8 +80,7 @@ app/admin/
 │   └── [id]/page.tsx              # Detail + manual status update
 ├── circle-orders/page.tsx
 ├── corporate-leads/page.tsx
-├── engraving-requests/page.tsx
-└── returns/page.tsx
+└── engraving-requests/page.tsx
 
 app/api/admin/
 ├── stats/route.ts                 # Dashboard aggregates (revenue, top products, category breakdown)
@@ -90,8 +90,7 @@ app/api/admin/
 ├── orders/[id]/route.ts           # GET detail, PATCH status
 ├── circle-orders/[id]/route.ts    # PATCH status/quotation
 ├── corporate-leads/route.ts       # GET list
-├── engraving-requests/[id]/route.ts
-└── returns/[id]/route.ts          # PATCH status
+└── engraving-requests/[id]/route.ts
 ```
 
 ## 7. Data Model Additions
@@ -114,7 +113,7 @@ This sits logically **after** Batch 2 (`FEATURE_SPEC_BATCH2.md`) since it's an i
 1. Auth/role gate + `/admin/orders` (highest operational value — you need this to run the business day-to-day)
 2. `/admin/products` (needed before real inventory replaces seed data)
 3. Dashboard with graphs (nice-to-have once there's real order data to chart)
-4. The four smaller queues (circle-orders, corporate-leads, engraving-requests, returns) — batch these together, same shape
+4. The three smaller queues (circle-orders, corporate-leads, engraving-requests) — batch these together, same shape
 
 ## Notes
 
