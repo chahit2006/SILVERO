@@ -19,7 +19,7 @@ Landing page after admin login. Four sections:
 - Today's revenue (sum of `Order.total` where `paymentStatus = PAID` and `createdAt` is today)
 - Orders today (count)
 - Pending orders (count where `status = PENDING`)
-- Low stock alert (count of products where `stock < 5`, threshold configurable)
+- Low stock alert (count of products where `stock < 5`, threshold configurable — PRODUCT_MGMT_PHASE_PLAN.md Phase 3: for a sized product this means *any* size's stock is under the threshold, via `ProductSizeStock`, not the unused flat `Product.stock`; sizeless products still just read `stock` directly)
 
 **Sales graph:**
 - Line chart, revenue over time — toggle between Last 7 days / 30 days / 90 days

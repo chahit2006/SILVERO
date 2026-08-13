@@ -76,6 +76,15 @@ async function main() {
           stock: 15 + i * 5,
           isBestseller: i === 0,
           isNew: i === 3,
+          // PRODUCT_MGMT_PHASE_PLAN.md Phase 3 — one ProductSizeStock row per
+          // sizeOptions entry, same stock: 0 convention as the backfill
+          // migration (this is placeholder catalog data, not real counts to
+          // invent). Keeps a fresh `prisma migrate reset` + reseed consistent
+          // with what real products look like after that migration ran.
+          sizeStocks:
+            cat.sizeOptions.length > 0
+              ? { create: cat.sizeOptions.map((size) => ({ size, stock: 0 })) }
+              : undefined,
         },
       });
     }

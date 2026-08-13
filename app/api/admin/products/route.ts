@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAdminOrNull } from "@/lib/auth";
-import { processProductPhotos, UploadValidationError } from "@/lib/image-upload";
+import { processProductPhotos, processBarcodeUpload, UploadValidationError } from "@/lib/image-upload";
+import { lowStockWhere, parseSizeStocks } from "@/lib/stock";
 
 // GET/POST /api/admin/products — ADMIN_PANEL_SPEC.md §6. The list page
 // itself queries Prisma directly (same pattern as every other admin/account
@@ -21,10 +22,11 @@ export async function GET(req: Request) {
   const products = await db.product.findMany({
     where: {
       ...(category ? { category: { slug: category } } : {}),
-      ...(lowStockOnly ? { stock: { lt: 5 } } : {}),
+      // PRODUCT_MGMT_PHASE_PLAN.md Phase 3 — see lib/stock.ts's lowStockWhere().
+      ...(lowStockOnly ? lowStockWhere() : {}),
       ...(includeArchived ? {} : { isArchived: false }),
     },
-    include: { category: true },
+    include: { category: true, sizeStocks: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -39,6 +41,16 @@ const productSchema = z.object({
     .min(1)
     .max(200)
     .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens."),
+  // PRODUCT_MGMT_PHASE_PLAN.md Phase 2 — admin-typed identifier, distinct
+  // from `id` (internal cuid) and `slug` (URL-facing). Optional: the form
+  // only sends this key when non-empty, same convention as material/stone/etc.
+  sku: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(/^[A-Za-z0-9_-]+$/, "Product ID / SKU can only contain letters, numbers, hyphens, and underscores.")
+    .optional(),
   categoryId: z.string().min(1),
   price: z.coerce.number().int().positive(),
   stock: z.coerce.number().int().min(0),
@@ -46,7 +58,11 @@ const productSchema = z.object({
   stone: z.string().trim().max(200).optional(),
   occasion: z.string().trim().max(100).optional(),
   description: z.string().trim().max(2000).optional(),
-  sizeOptions: z.string().trim().max(500).optional(), // comma-separated, parsed below
+  // PRODUCT_MGMT_PHASE_PLAN.md Phase 3 — JSON-encoded {size, stock}[],
+  // replacing the old comma-separated sizeOptions text field. Validated as a
+  // loose string here; shape-checked below once parsed, same two-step
+  // pattern existingImages (PATCH route) already uses for its JSON field.
+  sizeStocks: z.string().trim().optional(),
   weightGrams: z.coerce.number().int().positive().optional(),
   isBestseller: z.coerce.boolean().optional(),
   isNew: z.coerce.boolean().optional(),
@@ -70,6 +86,11 @@ export async function POST(req: Request) {
   const existing = await db.product.findUnique({ where: { slug: parsed.data.slug } });
   if (existing) return NextResponse.json({ error: "That slug is already in use." }, { status: 409 });
 
+  if (parsed.data.sku) {
+    const existingSku = await db.product.findUnique({ where: { sku: parsed.data.sku } });
+    if (existingSku) return NextResponse.json({ error: "That Product ID / SKU is already in use." }, { status: 409 });
+  }
+
   const photoFiles = formData.getAll("images").filter((v): v is File => v instanceof File && v.size > 0);
   let imageUrls: string[] = [];
   if (photoFiles.length > 0) {
@@ -84,15 +105,37 @@ export async function POST(req: Request) {
     }
   }
 
-  const { sizeOptions, ...rest } = parsed.data;
+  // PRODUCT_MGMT_PHASE_PLAN.md Phase 1 — optional, single file, own pipeline
+  // (see processBarcodeUpload's doc comment for why it's not processProductPhotos).
+  const barcodeFile = formData.get("barcodeImage");
+  let barcodeImageUrl: string | undefined;
+  if (barcodeFile instanceof File && barcodeFile.size > 0) {
+    try {
+      barcodeImageUrl = await processBarcodeUpload([barcodeFile]);
+    } catch (err) {
+      if (err instanceof UploadValidationError) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      console.error("Barcode image processing failed:", err);
+      return NextResponse.json({ error: "Could not process the barcode image. Please try again." }, { status: 500 });
+    }
+  }
+
+  const sizeRows = parseSizeStocks(parsed.data.sizeStocks);
+  if ("error" in sizeRows) return NextResponse.json({ error: sizeRows.error }, { status: 400 });
+
+  const { sizeStocks: _sizeStocksRaw, ...rest } = parsed.data;
 
   const product = await db.product.create({
     data: {
       ...rest,
       images: imageUrls,
-      sizeOptions: sizeOptions
-        ? sizeOptions.split(",").map((s) => s.trim()).filter(Boolean)
-        : [],
+      barcodeImage: barcodeImageUrl,
+      // sizeOptions (customer-facing, drives ProductDetailDrawer.tsx) and
+      // sizeStocks (admin per-size inventory) are written from the same
+      // rows so they can't drift — PRODUCT_MGMT_PHASE_PLAN.md Phase 3.
+      sizeOptions: sizeRows.map((r) => r.size),
+      sizeStocks: sizeRows.length > 0 ? { create: sizeRows.map((r) => ({ size: r.size, stock: r.stock })) } : undefined,
       isBestseller: parsed.data.isBestseller ?? false,
       isNew: parsed.data.isNew ?? false,
     },

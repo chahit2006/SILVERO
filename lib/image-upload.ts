@@ -92,3 +92,59 @@ export async function processCustomOrderPhotos(files: File[]): Promise<string[]>
 export async function processProductPhotos(files: File[]): Promise<string[]> {
   return processImageUploads(files, { subdir: "products", maxFiles: 8 });
 }
+
+/**
+ * Admin barcode/QR image upload — PRODUCT_MGMT_PHASE_PLAN.md Phase 1.
+ * Same signature-check/random-filename rigor as processImageUploads(), but
+ * deliberately NOT built on top of it: that function forces every output to
+ * JPEG, which is fine for photography and risky for a barcode/QR image —
+ * JPEG's lossy compression can smear the sharp module edges a scanner needs
+ * and break scannability. Here, PNG input stays PNG; only HEIC is converted
+ * (nothing can display HEIC directly) and JPEG input is re-encoded at a
+ * higher quality than the photo pipeline, since it's likely a rendered code
+ * rather than a photo. Single file only.
+ */
+export async function processBarcodeUpload(files: File[]): Promise<string> {
+  if (files.length === 0) {
+    throw new UploadValidationError("Upload a barcode image.");
+  }
+  if (files.length > 1) {
+    throw new UploadValidationError("Upload only one barcode image.");
+  }
+
+  const subdir = "barcodes";
+  const uploadDir = path.join(process.cwd(), "public", "uploads", subdir);
+  await mkdir(uploadDir, { recursive: true });
+
+  const file = files[0];
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    throw new UploadValidationError(`"${file.name}" is over the 10MB limit.`);
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const detected = await fromBuffer(buffer);
+  if (!detected || !ALLOWED_MIME_TYPES.has(detected.mime)) {
+    throw new UploadValidationError(`"${file.name}" isn't a supported image file.`);
+  }
+
+  let outBuffer: Buffer;
+  let ext: string;
+  if (detected.mime === "image/heic" || detected.mime === "image/heif") {
+    const decoded = await heicConvert({ buffer, format: "JPEG", quality: 0.95 });
+    outBuffer = await sharp(Buffer.from(decoded)).jpeg({ quality: 95 }).toBuffer();
+    ext = "jpg";
+  } else if (detected.mime === "image/png") {
+    // Re-encoded through sharp (still strips EXIF/metadata the same as the
+    // photo pipeline) but kept lossless — no format conversion.
+    outBuffer = await sharp(buffer).rotate().png().toBuffer();
+    ext = "png";
+  } else {
+    outBuffer = await sharp(buffer).rotate().jpeg({ quality: 95 }).toBuffer();
+    ext = "jpg";
+  }
+
+  const filename = `${randomUUID()}.${ext}`;
+  await writeFile(path.join(uploadDir, filename), outBuffer);
+  return `/uploads/${subdir}/${filename}`;
+}

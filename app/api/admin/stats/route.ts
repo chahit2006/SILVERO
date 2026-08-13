@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getAdminOrNull } from "@/lib/auth";
+import { lowStockWhere } from "@/lib/stock";
 
 // GET /api/admin/stats?days=7|30|90 — ADMIN_PANEL_SPEC.md §2 dashboard aggregates.
 //
@@ -32,7 +33,9 @@ export async function GET(req: Request) {
       }),
       db.order.count({ where: { createdAt: { gte: todayStart } } }),
       db.order.count({ where: { status: "PENDING" } }),
-      db.product.count({ where: { stock: { lt: 5 }, isArchived: false } }),
+      // PRODUCT_MGMT_PHASE_PLAN.md Phase 3 — "any size's stock < 5" for
+      // sized products, flat stock < 5 for sizeless ones. See lib/stock.ts.
+      db.product.count({ where: { isArchived: false, ...lowStockWhere() } }),
 
       db.$queryRaw<{ day: Date; revenue: bigint }[]>`
         SELECT DATE("createdAt") as day, SUM(total) as revenue

@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Category, Product } from "@prisma/client";
+import type { Category, Product, ProductSizeStock } from "@prisma/client";
 import { formatPrice } from "@/lib/format";
+import { isProductLowStock, needsSizeStockEntry, LOW_STOCK_THRESHOLD } from "@/lib/stock";
 
-type ProductWithCategory = Product & { category: Category };
+type ProductWithCategory = Product & { category: Category; sizeStocks: ProductSizeStock[] };
 
 export function ProductsTable({ products }: { products: ProductWithCategory[] }) {
   const router = useRouter();
@@ -57,10 +58,32 @@ export function ProductsTable({ products }: { products: ProductWithCategory[] })
               </td>
               <td className="p-3 text-text-dark/60">{p.category.name}</td>
               <td className="p-3">{formatPrice(p.price)}</td>
-              <td className={`p-3 ${p.stock < 5 ? "font-medium text-red-700" : ""}`}>{p.stock}</td>
+              <td className="p-3">
+                {p.sizeStocks.length > 0 ? (
+                  <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs">
+                    {p.sizeStocks.map((s) => (
+                      <span key={s.id} className={s.stock < LOW_STOCK_THRESHOLD ? "font-medium text-red-700" : "text-text-dark/70"}>
+                        {s.size}: {s.stock}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className={p.stock < LOW_STOCK_THRESHOLD ? "font-medium text-red-700" : ""}>{p.stock}</span>
+                )}
+              </td>
               <td className="p-3 text-xs">
                 {p.isBestseller && <span className="mr-1 rounded-full bg-ivory px-2 py-0.5">Bestseller</span>}
-                {p.isNew && <span className="rounded-full bg-ivory px-2 py-0.5">New</span>}
+                {p.isNew && <span className="mr-1 rounded-full bg-ivory px-2 py-0.5">New</span>}
+                {/* PRODUCT_MGMT_PHASE_PLAN.md Phase 3 — every size still at the
+                    post-migration default of 0 means real counts were never
+                    entered; distinct from ordinary low-stock, which the
+                    per-size numbers above already surface in red. */}
+                {needsSizeStockEntry(p) && (
+                  <span className="mr-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">Needs stock entry</span>
+                )}
+                {isProductLowStock(p) && !needsSizeStockEntry(p) && (
+                  <span className="mr-1 rounded-full bg-red-100 px-2 py-0.5 text-red-700">Low stock</span>
+                )}
                 {p.isArchived && <span className="rounded-full bg-red-100 px-2 py-0.5 text-red-700">Archived</span>}
               </td>
               <td className="space-x-3 p-3 text-right">

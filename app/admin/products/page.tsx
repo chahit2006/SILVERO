@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ProductsTable } from "@/components/admin/ProductsTable";
+import { lowStockWhere } from "@/lib/stock";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +16,11 @@ export default async function AdminProductsPage({
     db.product.findMany({
       where: {
         ...(searchParams.category ? { categoryId: searchParams.category } : {}),
-        ...(searchParams.lowStock === "true" ? { stock: { lt: 5 } } : {}),
+        // PRODUCT_MGMT_PHASE_PLAN.md Phase 3 — see lib/stock.ts's lowStockWhere().
+        ...(searchParams.lowStock === "true" ? lowStockWhere() : {}),
         ...(searchParams.archived === "true" ? {} : { isArchived: false }),
       },
-      include: { category: true },
+      include: { category: true, sizeStocks: true },
       orderBy: { createdAt: "desc" },
     }),
     db.category.findMany({ orderBy: { englishName: "asc" } }),

@@ -109,14 +109,34 @@ model Product {
   category     Category @relation(fields: [categoryId], references: [id])
   name         String
   slug         String   @unique
+  // Added 2026-08-13 (PRODUCT_MGMT_PHASE_PLAN.md Phase 2) — admin-typed
+  // identifier, separate from the internal cuid `id` and from `slug` (which
+  // is URL-facing). Nullable + unique: Postgres allows multiple NULLs under
+  // a unique constraint, so existing/untagged products don't need a
+  // backfilled value before this could ship. Not customer-facing.
+  sku          String?  @unique
   price        Int // rupees, whole integers — see DATA_MODEL.md "Notes"
   images       String[]
+  // Added 2026-08-13 (PRODUCT_MGMT_PHASE_PLAN.md Phase 1) — single barcode/QR
+  // image, separate from the `images` gallery. Nullable: not every product has
+  // one yet. Uploaded via processBarcodeUpload() in lib/image-upload.ts, which
+  // deliberately does NOT force JPEG re-encoding the way processProductPhotos()
+  // does — lossy compression can break scannability of a dense barcode/QR.
+  barcodeImage String?
   material     String?
   stone        String?
   occasion     String?
   description  String?
-  sizeOptions  String[] // e.g. ["10","12","14","16","18","20"]
+  sizeOptions  String[] // e.g. ["10","12","14","16","18","20"] — customer-facing, still the source of truth for the size selector (ProductDetailDrawer.tsx). Kept in sync with ProductSizeStock's `size` column by the admin form (one write path: components/admin/ProductForm.tsx's size+qty rows), not edited independently.
   stock        Int      @default(0)
+  // Added 2026-08-13 (PRODUCT_MGMT_PHASE_PLAN.md Phase 3) — per-size
+  // inventory for sized products. A product with sizeOptions: [] has no
+  // ProductSizeStock rows and keeps `stock` above as its flat source of
+  // truth; a product with sizes has one row per size and `stock` above goes
+  // unused for display (still what checkout decrements today — see Phase 4,
+  // not yet built — CLAUDE.md #4 flags this file as the one place stock-lock
+  // logic should live, so lib/stock.ts, not here, is where that gets fixed).
+  sizeStocks   ProductSizeStock[]
   isBestseller Boolean  @default(false)
   isNew        Boolean  @default(false)
   createdAt    DateTime @default(now())
@@ -133,6 +153,20 @@ model Product {
   recentViews       RecentlyViewed[]
   registryItems     RegistryItem[]
   engravingRequests EngravingRequest[]
+}
+
+// Added 2026-08-13 (PRODUCT_MGMT_PHASE_PLAN.md Phase 3) — see Product.sizeStocks
+// above. `size` is an opaque label (matches whatever's in Product.sizeOptions
+// for that product — a ring size, a chain length, whatever the category
+// uses), not a shared enum across products.
+model ProductSizeStock {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  size      String
+  stock     Int     @default(0)
+
+  @@unique([productId, size])
 }
 
 model CartItem {

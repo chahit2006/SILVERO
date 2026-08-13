@@ -113,14 +113,16 @@ model Product {
   category      Category @relation(fields: [categoryId], references: [id])
   name          String
   slug          String   @unique
+  sku           String?  @unique  // admin-typed "Product ID / SKU", distinct from id/slug — PRODUCT_MGMT_PHASE_PLAN.md Phase 2, added 2026-08-13. Nullable (Postgres allows multiple NULLs under a unique constraint); admin-only, not shown on the storefront or invoices
   price         Int                // rupees, whole integers — see "Notes" below
   images        String[]
+  barcodeImage  String?            // single URL, separate from images[] — PRODUCT_MGMT_PHASE_PLAN.md Phase 1, added 2026-08-13
   material      String?
   stone         String?
   occasion      String?
   description   String?
-  sizeOptions   String[]           // e.g. ["10","12","14","16","18","20"]
-  stock         Int      @default(0)
+  sizeOptions   String[]           // e.g. ["10","12","14","16","18","20"] — customer-facing (ProductDetailDrawer.tsx); kept in sync with ProductSizeStock's `size` column by the admin form, one write path
+  stock         Int      @default(0) // for sizeless products (sizeOptions: []), this is the only stock number. For sized products it's what checkout still decrements today (Phase 4, not yet built) but the admin UI shows/edits ProductSizeStock instead — see that model
   isBestseller  Boolean  @default(false)
   isNew         Boolean  @default(false)
   createdAt     DateTime @default(now())
@@ -133,6 +135,26 @@ model Product {
   recentViews       RecentlyViewed[]
   registryItems     RegistryItem[]
   engravingRequests EngravingRequest[]
+  sizeStocks        ProductSizeStock[]
+}
+
+// Added 2026-08-13 (PRODUCT_MGMT_PHASE_PLAN.md Phase 3) — per-size admin
+// inventory. A sizeless product (sizeOptions: []) has no rows here and
+// Product.stock above stays its source of truth; a sized product has one row
+// per sizeOptions entry. `size` is an opaque label, not a shared enum —
+// whatever the category uses (ring size, chain length, etc.). Migration
+// `20260813152214_add_product_size_stock` backfilled one row per existing
+// sizeOptions entry at stock: 0 for products that already had sizes —
+// Product.stock was left untouched, not split/divided/copied, since that
+// would be inventing data; real per-size counts need entering by hand.
+model ProductSizeStock {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  size      String
+  stock     Int     @default(0)
+
+  @@unique([productId, size])
 }
 
 model CartItem {
