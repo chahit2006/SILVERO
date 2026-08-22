@@ -157,6 +157,39 @@ model ProductSizeStock {
   @@unique([productId, size])
 }
 
+// Added 2026-08-22 (FILTER_SPEC_IMPLEMENTATION.md Part 1 — Attributes
+// Manager). Migration `20260822090000_filter_attributes`. Headings are FIXED
+// IN CODE per the Filter Specification — the canonical list lives in
+// lib/attributes.ts and prisma/seed-attributes.ts upserts a row per key, so
+// this table is not the source of truth for which headings exist. Options
+// inside a heading are entirely the client's to manage at /admin/attributes.
+model FilterHeading {
+  id      String         @id @default(cuid())
+  key     String         @unique // "finish" | "stone" | "stone_color" | "design_style" | "occasion" | "collection"
+  options FilterOption[]
+}
+
+// One selectable filter value — "925 Silver", "Everyday". `sortOrder` is the
+// admin's drag-to-reorder position and is what both the PLP sidebar and the
+// product form's dropdowns render in.
+//
+// Part 1 caveat: Product.material/.stone/.occasion are still free-text
+// Strings matched against `label`, so renaming an option has to rewrite every
+// product carrying the old text (PATCH /api/admin/attributes/options/[id]
+// does this in one transaction), and deleting an option still in use is
+// refused. Part 2 of the spec replaces those columns with real FKs and both
+// workarounds go away.
+model FilterOption {
+  id        String        @id @default(cuid())
+  headingId String
+  heading   FilterHeading @relation(fields: [headingId], references: [id], onDelete: Cascade)
+  label     String
+  sortOrder Int           @default(0)
+
+  @@unique([headingId, label])
+  @@index([headingId, sortOrder])
+}
+
 model CartItem {
   id         String   @id @default(cuid())
   userId     String?              // null for guest carts (use sessionId instead)

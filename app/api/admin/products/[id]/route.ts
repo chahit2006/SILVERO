@@ -19,6 +19,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json({ product });
 }
 
+// "" (the form's "— None —") clears the column; an absent key leaves it alone.
+const emptyToNull = (schema: z.ZodString) =>
+  schema.optional().transform((v) => (v === "" ? null : v));
+
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   slug: z
@@ -42,9 +46,16 @@ const patchSchema = z.object({
   categoryId: z.string().min(1).optional(),
   price: z.coerce.number().int().positive().optional(),
   stock: z.coerce.number().int().min(0).optional(),
-  material: z.string().trim().max(200).optional(),
-  stone: z.string().trim().max(200).optional(),
-  occasion: z.string().trim().max(100).optional(),
+  // FILTER_SPEC_IMPLEMENTATION.md Part 1 — these are now dropdowns fed by
+  // the Attributes Manager, and the form always sends them so "— None —" can
+  // clear one. "" therefore has to mean null, not an empty-string tag that no
+  // filter would ever match. Values are not validated against FilterOption:
+  // products tagged before the manager existed still have to be editable
+  // without being forced onto a listed option first (Part 2's FK columns are
+  // where that constraint properly belongs).
+  material: emptyToNull(z.string().trim().max(200)),
+  stone: emptyToNull(z.string().trim().max(200)),
+  occasion: emptyToNull(z.string().trim().max(100)),
   description: z.string().trim().max(2000).optional(),
   // PRODUCT_MGMT_PHASE_PLAN.md Phase 3 — see parseSizeStocks() in lib/stock.ts.
   sizeStocks: z.string().trim().optional(),

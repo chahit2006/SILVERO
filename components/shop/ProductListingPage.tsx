@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Product } from "@prisma/client";
 import type { NavCategory } from "@/lib/nav-data";
 import type { PriceBounds, ProductFilters } from "@/lib/products";
+import type { PlpFilterGroup } from "@/lib/attributes";
 import { SORT_OPTIONS } from "@/lib/filter-options";
 import { formatPrice } from "@/lib/format";
 import { ProductCard } from "./ProductCard";
@@ -22,6 +23,8 @@ export type PLPConfig = {
   categories?: NavCategory[];
   /** Cheapest/priciest product in this view — the slider's track ends. */
   priceBounds: PriceBounds;
+  /** Admin-managed filter sections, already filtered to options in use here. */
+  filterGroups: PlpFilterGroup[];
 };
 
 function buildSearchParams(base: ProductFilters, adjustable: AdjustableFilters, sort: string, page: number) {
@@ -145,6 +148,7 @@ export function ProductListingPage({
         <aside className="hidden w-[200px] shrink-0 lg:block">
           <FilterPanel
             categories={config.categories}
+            groups={config.filterGroups}
             priceBounds={config.priceBounds}
             filters={adjustable}
             onChange={setAdjustable}
@@ -257,6 +261,7 @@ export function ProductListingPage({
 
             <FilterPanel
               categories={config.categories}
+              groups={config.filterGroups}
               priceBounds={config.priceBounds}
               filters={draft}
               onChange={setDraft}

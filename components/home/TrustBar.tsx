@@ -2,7 +2,6 @@ const ITEMS = [
   { label: "Complimentary Shipping", detail: "Across India, on every order" },
   { label: "925 Sterling Silver", detail: "Hallmarked, always" },
   { label: "Lifetime Plating", detail: "Free re-plating for life" },
-  { label: "Easy Returns", detail: "7-day no-questions returns" },
 ];
 
 // DESIGN_SYSTEM.md §5 #2 (simple row) and #10 (detailed, rounded icon

@@ -3,6 +3,7 @@
 // something real to query via Prisma instead of hardcoded arrays in
 // components. Swap for real product data before launch.
 import { PrismaClient } from "@prisma/client";
+import { seedAttributes } from "./seed-attributes";
 
 const db = new PrismaClient();
 
@@ -89,6 +90,11 @@ async function main() {
       });
     }
   }
+
+  // FILTER_SPEC_IMPLEMENTATION.md Part 1 — runs after products exist so its
+  // backfill picks up the material/stone/occasion values seeded above.
+  console.log("Seeding filter headings + options...");
+  await seedAttributes();
 
   const productCount = await db.product.count();
   console.log(`Done. ${CATEGORIES.length} categories, ${productCount} products.`);

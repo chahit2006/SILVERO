@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Category, Product, ProductSizeStock } from "@prisma/client";
+import type { ProductAttributeOptions } from "@/lib/attributes";
 import { formatPrice } from "@/lib/format";
 
 function slugify(name: string) {
@@ -32,9 +34,14 @@ function initialSizeRows(product?: Product & { sizeStocks?: ProductSizeStock[] }
 // /admin/products/[id]/edit.
 export function ProductForm({
   categories,
+  attributeOptions,
   product,
 }: {
   categories: Category[];
+  /** FILTER_SPEC_IMPLEMENTATION.md Part 1 — Finish/Stone/Occasion are no
+   *  longer free text; they come from the Attributes Manager
+   *  (/admin/attributes) so the same values power the shop filters. */
+  attributeOptions: ProductAttributeOptions;
   product?: Product & { sizeStocks?: ProductSizeStock[] };
 }) {
   const router = useRouter();
@@ -79,9 +86,13 @@ export function ProductForm({
     formData.set("categoryId", categoryId);
     formData.set("price", price);
     formData.set("stock", stock);
-    if (material) formData.set("material", material);
-    if (stone) formData.set("stone", stone);
-    if (occasion) formData.set("occasion", occasion);
+    // Always sent, unlike sku/description: now that these are dropdowns with
+    // a "— None —" entry, clearing one has to actually clear it on the
+    // product (the API maps "" to null). Omitting the key would silently keep
+    // the old value, which is what the old free-text inputs did.
+    formData.set("material", material);
+    formData.set("stone", stone);
+    formData.set("occasion", occasion);
     if (description) formData.set("description", description);
     // PRODUCT_MGMT_PHASE_PLAN.md Phase 3 — replaces the old comma-separated
     // sizeOptions text field. Blank size labels are dropped here so an empty
@@ -168,17 +179,18 @@ export function ProductForm({
         </Field>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Field label="Material">
-          <input value={material} onChange={(e) => setMaterial(e.target.value)} className={inputClass} />
-        </Field>
-        <Field label="Stone">
-          <input value={stone} onChange={(e) => setStone(e.target.value)} className={inputClass} />
-        </Field>
-        <Field label="Occasion">
-          <input value={occasion} onChange={(e) => setOccasion(e.target.value)} className={inputClass} />
-        </Field>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <AttributeField label="Finish / Material" value={material} options={attributeOptions.material} onChange={setMaterial} />
+        <AttributeField label="Stone" value={stone} options={attributeOptions.stone} onChange={setStone} />
+        <AttributeField label="Occasion" value={occasion} options={attributeOptions.occasion} onChange={setOccasion} />
       </div>
+      <p className="-mt-2 text-xs text-text-dark/40">
+        Manage these options in{" "}
+        <Link href="/admin/attributes" className="underline">
+          Filter Attributes
+        </Link>
+        .
+      </p>
 
       <div>
         <p className="mb-2 text-xs uppercase tracking-wide text-text-dark/60">Sizes &amp; Per-Size Stock (optional)</p>
@@ -312,6 +324,44 @@ export function ProductForm({
 }
 
 const inputClass = "w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm outline-none focus:border-olive-dark";
+
+// A dropdown over the admin-managed options for one heading. Two details
+// matter here: "None" has to be selectable (these fields are optional, and a
+// select with no empty entry would force the first option onto every
+// product), and a product whose stored value isn't in the list any more still
+// shows it — flagged, not silently rewritten to something else. That happens
+// with data that predates the Attributes Manager, or if an option is renamed
+// while a form sits open.
+function AttributeField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const orphaned = value !== "" && !options.includes(value);
+
+  return (
+    <Field label={label}>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+        <option value="">— None —</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+        {orphaned && <option value={value}>{value} (not in Filter Attributes)</option>}
+      </select>
+      {options.length === 0 && !orphaned && (
+        <p className="mt-1 text-xs text-amber-700">No options set up yet.</p>
+      )}
+    </Field>
+  );
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

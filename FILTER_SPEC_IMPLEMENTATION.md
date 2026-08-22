@@ -6,7 +6,10 @@ conflicts with earlier decisions, and sets the build order. Read this before
 touching filter/category code — it supersedes `FEATURE_SPEC_BATCH2.md` §1 on
 filters specifically (that doc is still correct on everything else in Batch 2).
 
-Status: **not started.** Nothing in this doc has been built yet.
+Status: **Part 1 built (2026-08-22). Parts 2–7 not started.** See
+`BUILD_STATUS.md` for what Part 1 shipped and the one caveat on it (no live
+database was reachable at build time, so the migration and seed still need to
+be applied and exercised).
 
 ---
 
@@ -28,7 +31,28 @@ stale relative to the H&M-style decision. Note the answer here once decided:
 
 ---
 
-## Part 1 — Admin Attributes Manager (build first)
+## Part 1 — Admin Attributes Manager (build first) — ✅ BUILT
+
+Shipped as described below, with these decisions made during the build:
+
+- **Product fields unchanged.** `material`/`stone`/`occasion` are still the
+  free-text String columns they were; only the *source of their values*
+  changed (dropdowns fed by `FilterOption`). Renaming `material` → `finish`,
+  turning `occasion` into an array, and adding real FK columns are Part 2's
+  job and its own client review — Part 1 deliberately doesn't pre-empt them.
+  The PLP section title therefore still reads "Material", not "Finish".
+- **All six headings exist and are manageable now**, including the three with
+  no product field yet (`stone_color`, `design_style`, `collection`). The
+  admin UI marks those as awaiting Part 2, so the client can curate the option
+  lists ahead of the field migration.
+- **Delete is refused while an option is in use**, with the product count
+  shown. Not in the spec, but the alternative strands those products on a
+  value no filter offers and no UI can find. Rename is the recoverable path,
+  and it rewrites the tagged products in the same transaction.
+- **Hide-when-empty is scoped per route**, using that route's base filters —
+  a Zanjeer page won't offer a stone no chain has. Not scoped to the shopper's
+  own selections, which would make a checkbox disappear as it's ticked.
+
 
 This is the foundational piece everything else depends on. Today, `finish`
 (currently called `material`), `stone`, and `occasion` are free-text `<input>`
@@ -146,8 +170,8 @@ exactly. Flag for client confirmation same as the price conflict.
 
 ## Build order
 
-1. **Confirm the price filter conflict** (buckets vs. slider) — blocks Part 2's `price_range` decision
-2. **Attributes Manager** (Part 1) — `FilterHeading`/`FilterOption` models, admin CRUD UI, product form rewire
+1. **Confirm the price filter conflict** (buckets vs. slider) — blocks Part 2's `price_range` decision — ⏳ still open
+2. ~~**Attributes Manager** (Part 1) — `FilterHeading`/`FilterOption` models, admin CRUD UI, product form rewire~~ — ✅ done 2026-08-22
 3. **Schema migration** (Part 2) — new/changed Product fields, `weight_class` bucketing, `Gender` enum `UNISEX` addition
 4. **3 missing categories** (Part 3) — Dastband, Kundal, Takma: pages, nav, seed data
 5. **Unisex gender toggle** (Part 3) — Sitara + Takma product-level gender + `Sabhi/Nar/Nari` UI

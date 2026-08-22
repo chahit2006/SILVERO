@@ -169,6 +169,36 @@ model ProductSizeStock {
   @@unique([productId, size])
 }
 
+// Added 2026-08-22 (FILTER_SPEC_IMPLEMENTATION.md Part 1 — Attributes
+// Manager). Headings are FIXED IN CODE, per the Filter Specification: the
+// admin can add/rename/reorder/delete the *options* inside a heading with no
+// code change, but adding a whole new heading is a developer job. The
+// canonical list of keys and their labels lives in lib/attributes.ts —
+// prisma/seed-attributes.ts upserts a row here for each one. This table
+// exists so FilterOption has something to hang off; it is not the source of
+// truth for which headings exist.
+model FilterHeading {
+  id      String         @id @default(cuid())
+  key     String         @unique // "finish" | "stone" | "stone_color" | "design_style" | "occasion" | "collection"
+  options FilterOption[]
+}
+
+// One selectable value inside a heading — "925 Silver", "Rozana (Everyday)".
+// Part 1 keeps Product.material/stone/occasion as free-text Strings and
+// matches on `label`, so a rename here must also rewrite every product
+// carrying the old label (see the PATCH route). Part 2 of the spec replaces
+// that with real FK columns, at which point the rename cascade goes away.
+model FilterOption {
+  id        String        @id @default(cuid())
+  headingId String
+  heading   FilterHeading @relation(fields: [headingId], references: [id], onDelete: Cascade)
+  label     String
+  sortOrder Int           @default(0)
+
+  @@unique([headingId, label])
+  @@index([headingId, sortOrder])
+}
+
 model CartItem {
   id        String  @id @default(cuid())
   userId    String? // null for guest carts (use sessionId instead)

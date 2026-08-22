@@ -23,7 +23,11 @@ export type ProductFilters = {
 // /api/products (client-side filter changes) and every /shop/* server
 // component's initial SSR fetch (TECH_STACK.md — category pages need to be
 // crawlable). Keep this the only place that builds the query.
-function buildWhere(filters: ProductFilters): Prisma.ProductWhereInput {
+// Exported (2026-08-22) so lib/attributes.ts can scope its "which filter
+// options are actually in use" query to exactly the same set of products a
+// route lists — anything else and the sidebar could offer a checkbox that
+// returns nothing.
+export function buildProductWhere(filters: ProductFilters): Prisma.ProductWhereInput {
   // `category` and `gender` both constrain the SAME relation, so they have to
   // be merged into one nested object. Spreading them as two separate
   // `category:` keys meant the second silently overwrote the first — on a
@@ -60,7 +64,7 @@ function buildWhere(filters: ProductFilters): Prisma.ProductWhereInput {
 
 export async function getProducts(filters: ProductFilters) {
   const page = Math.max(1, filters.page ?? 1);
-  const where = buildWhere(filters);
+  const where = buildProductWhere(filters);
 
   const orderBy: Prisma.ProductOrderByWithRelationInput[] =
     filters.sort === "price-asc"
@@ -99,7 +103,7 @@ const PRICE_STEP = 100;
 export async function getPriceBounds(filters: ProductFilters): Promise<PriceBounds> {
   const { minPrice, maxPrice, ...rest } = filters;
   const agg = await db.product.aggregate({
-    where: buildWhere(rest),
+    where: buildProductWhere(rest),
     _min: { price: true },
     _max: { price: true },
   });

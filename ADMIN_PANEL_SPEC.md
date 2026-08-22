@@ -80,7 +80,8 @@ app/admin/
 │   └── [id]/page.tsx              # Detail + manual status update
 ├── circle-orders/page.tsx
 ├── corporate-leads/page.tsx
-└── engraving-requests/page.tsx
+├── engraving-requests/page.tsx
+└── attributes/page.tsx            # Filter Attributes manager (FILTER_SPEC_IMPLEMENTATION.md Part 1)
 
 app/api/admin/
 ├── stats/route.ts                 # Dashboard aggregates (revenue, top products, category breakdown)
@@ -90,7 +91,11 @@ app/api/admin/
 ├── orders/[id]/route.ts           # GET detail, PATCH status
 ├── circle-orders/[id]/route.ts    # PATCH status/quotation
 ├── corporate-leads/route.ts       # GET list
-└── engraving-requests/[id]/route.ts
+├── engraving-requests/[id]/route.ts
+├── attributes/route.ts            # GET headings + options + live product counts
+├── attributes/options/route.ts    # POST add an option to a (code-fixed) heading
+├── attributes/options/[id]/route.ts   # PATCH rename (retags products in the same txn), DELETE (refused while in use)
+└── attributes/[key]/reorder/route.ts  # PATCH full option-id list in its new order
 ```
 
 ## 7. Data Model Additions

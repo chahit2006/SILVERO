@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:seed-attributes": "tsx prisma/seed-attributes.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

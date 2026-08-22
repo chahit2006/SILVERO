@@ -1,4 +1,5 @@
 import { getPriceBounds, getProducts, type ProductFilters } from "@/lib/products";
+import { getPlpFilterGroups } from "@/lib/attributes";
 import type { NavCategory } from "@/lib/nav-data";
 import { ProductListingPage } from "./ProductListingPage";
 
@@ -17,16 +18,21 @@ export async function ShopRoute({
   baseFilters: ProductFilters;
   categories?: NavCategory[];
 }) {
-  // Both queries hit the same table with the same base filters, so they run
-  // together rather than adding a second round-trip to first paint.
-  const [{ products, total }, priceBounds] = await Promise.all([
+  // All three hit the same table with the same base filters, so they run
+  // together rather than adding round-trips to first paint. The filter groups
+  // are resolved here rather than in the client component because
+  // "hide-when-empty" (FILTER_SPEC_IMPLEMENTATION.md Part 1) needs to know
+  // which options real products carry — a database question, and one whose
+  // answer belongs in the crawlable initial render.
+  const [{ products, total }, priceBounds, filterGroups] = await Promise.all([
     getProducts(baseFilters),
     getPriceBounds(baseFilters),
+    getPlpFilterGroups(baseFilters),
   ]);
 
   return (
     <ProductListingPage
-      config={{ title, description, baseFilters, categories, priceBounds }}
+      config={{ title, description, baseFilters, categories, priceBounds, filterGroups }}
       initialProducts={products}
       initialTotal={total}
     />

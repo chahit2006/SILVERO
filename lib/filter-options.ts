@@ -1,10 +1,8 @@
-// Static filter option lists for the PLP sidebar. Material/Stone/Occasion
-// are free-text Product fields (DATA_MODEL.md), so there's no DB-backed
-// enum to draw from — these match what prisma/seed.ts populates. Expand
-// this list as real product data introduces new values.
-export const MATERIAL_OPTIONS = ["925 Sterling Silver", "925 Sterling Silver, Gold-Plated"];
-export const STONE_OPTIONS = ["Cubic Zirconia", "Moissanite"];
-export const OCCASION_OPTIONS = ["Everyday", "Festive", "Wedding", "Gifting"];
+// The Material/Stone/Occasion lists that lived here were removed on
+// 2026-08-22: FILTER_SPEC_IMPLEMENTATION.md Part 1 makes those options
+// admin-managed, so they now come from the FilterOption table via
+// getPlpFilterGroups() in lib/attributes.ts — which also enforces the spec's
+// hide-when-empty rule. Editing filter options is no longer a code change.
 
 // The preset PRICE_BANDS (₹0–2K, 2K–5K, …) that DESIGN_SYSTEM.md §6 specified
 // were removed on 2026-08-08: FEATURE_SPEC_BATCH2.md §1 replaced them with a

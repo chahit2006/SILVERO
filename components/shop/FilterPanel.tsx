@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { NavCategory } from "@/lib/nav-data";
 import type { PriceBounds } from "@/lib/products";
-import { MATERIAL_OPTIONS, OCCASION_OPTIONS, STONE_OPTIONS } from "@/lib/filter-options";
+import type { PlpFilterGroup } from "@/lib/attributes";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { PriceRangeSlider, type PriceRange } from "./PriceRangeSlider";
 
@@ -31,13 +31,20 @@ function toggle(list: string[], value: string) {
 // DESIGN_SYSTEM.md §6 "PLP" — each filter group is a collapsible section
 // with checkboxes. Price is the exception: FEATURE_SPEC_BATCH2.md §1 replaced
 // the original preset bands with a drag-to-select range slider.
+//
+// Material/Stone/Occasion are no longer hardcoded here. They arrive as
+// `groups`, built server-side by getPlpFilterGroups() from the Attributes
+// Manager — admin order, and only options at least one product in this view
+// actually carries (FILTER_SPEC_IMPLEMENTATION.md Part 1, "hide-when-empty").
 export function FilterPanel({
   categories,
+  groups,
   priceBounds,
   filters,
   onChange,
 }: {
   categories?: NavCategory[];
+  groups: PlpFilterGroup[];
   priceBounds: PriceBounds;
   filters: AdjustableFilters;
   onChange: (next: AdjustableFilters) => void;
@@ -65,38 +72,20 @@ export function FilterPanel({
         />
       </Section>
 
-      <Section title="Material">
-        {MATERIAL_OPTIONS.map((m) => (
-          <Checkbox
-            key={m}
-            label={m}
-            checked={filters.material.includes(m)}
-            onChange={() => onChange({ ...filters, material: toggle(filters.material, m) })}
-          />
-        ))}
-      </Section>
-
-      <Section title="Stone">
-        {STONE_OPTIONS.map((s) => (
-          <Checkbox
-            key={s}
-            label={s}
-            checked={filters.stone.includes(s)}
-            onChange={() => onChange({ ...filters, stone: toggle(filters.stone, s) })}
-          />
-        ))}
-      </Section>
-
-      <Section title="Occasion">
-        {OCCASION_OPTIONS.map((o) => (
-          <Checkbox
-            key={o}
-            label={o}
-            checked={filters.occasion.includes(o)}
-            onChange={() => onChange({ ...filters, occasion: toggle(filters.occasion, o) })}
-          />
-        ))}
-      </Section>
+      {groups.map((group) => (
+        <Section key={group.key} title={group.title}>
+          {group.options.map((option) => (
+            <Checkbox
+              key={option}
+              label={option}
+              checked={filters[group.queryKey].includes(option)}
+              onChange={() =>
+                onChange({ ...filters, [group.queryKey]: toggle(filters[group.queryKey], option) })
+              }
+            />
+          ))}
+        </Section>
+      ))}
     </div>
   );
 }
