@@ -14,7 +14,7 @@ export function CircleCTA() {
   return (
     <section className="grid grid-cols-1 md:grid-cols-2">
       <div className="relative min-h-[280px]">
-        <Image src="/placeholders/lifestyle-b.svg" alt="" fill className="object-cover" />
+        <Image src="/placeholders/silvero-cta.png" alt="" fill className="object-cover" />
       </div>
       <div className="flex flex-col justify-center bg-olive-dark px-8 py-16 text-ivory sm:px-16">
         <p className="text-xs uppercase tracking-[0.2em] opacity-70">SILVERO Circle</p>

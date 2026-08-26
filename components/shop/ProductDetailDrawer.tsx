@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Product, Category, ProductSizeStock } from "@prisma/client";
 import { formatPrice } from "@/lib/format";
+import { getTrialImages } from "@/lib/trialImages"; // TEMPORARY — see lib/trialImages.ts
 import { useCart } from "@/components/providers/CartProvider";
 import { useWishlist } from "@/components/providers/WishlistProvider";
 import { useCompare } from "@/components/providers/CompareProvider";
@@ -128,6 +129,10 @@ export function ProductDetailDrawer({
 
   if (!productId) return null;
 
+  // TEMPORARY — see lib/trialImages.ts. Falls back to the real product.images
+  // whenever there's no trial override for this product's category.
+  const images = product ? (getTrialImages(product) ?? product.images) : [];
+
   // Part 1 #8 — a size is out of stock when its ProductSizeStock row is at or
   // below zero. Products with no rows at all (the genuinely sizeless
   // categories, and anything not yet given per-size counts) fall through as
@@ -226,12 +231,12 @@ export function ProductDetailDrawer({
               {/* Gallery */}
               <div>
                 <div className="relative aspect-square overflow-hidden rounded-card bg-ivory">
-                  {product.images[activeImage] && (
-                    <Image src={product.images[activeImage]} alt={product.name} fill className="object-cover" />
+                  {images[activeImage] && (
+                    <Image src={images[activeImage]} alt={product.name} fill className="object-cover" />
                   )}
 
                   {/* Zoom — DESIGN_SYSTEM.md §7 "main image with prev/next arrows + zoom icon" */}
-                  {product.images[activeImage] && (
+                  {images[activeImage] && (
                     <button
                       aria-label="Zoom image"
                       onClick={() => setZoomed(true)}
@@ -241,18 +246,18 @@ export function ProductDetailDrawer({
                     </button>
                   )}
 
-                  {product.images.length > 1 && (
+                  {images.length > 1 && (
                     <>
                       <button
                         aria-label="Previous image"
-                        onClick={() => setActiveImage((i) => (i - 1 + product.images.length) % product.images.length)}
+                        onClick={() => setActiveImage((i) => (i - 1 + images.length) % images.length)}
                         className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2"
                       >
                         ‹
                       </button>
                       <button
                         aria-label="Next image"
-                        onClick={() => setActiveImage((i) => (i + 1) % product.images.length)}
+                        onClick={() => setActiveImage((i) => (i + 1) % images.length)}
                         className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2"
                       >
                         ›
@@ -260,9 +265,9 @@ export function ProductDetailDrawer({
                     </>
                   )}
                 </div>
-                {product.images.length > 1 && (
+                {images.length > 1 && (
                   <div className="mt-3 grid grid-cols-4 gap-2">
-                    {product.images.slice(0, 4).map((img, i) => (
+                    {images.slice(0, 4).map((img, i) => (
                       <button
                         key={img + i}
                         onClick={() => setActiveImage(i)}
@@ -515,12 +520,12 @@ export function ProductDetailDrawer({
       </div>
 
       {/* Lightbox — Part 1 #2 */}
-      {zoomed && product?.images[activeImage] && (
+      {zoomed && product && images[activeImage] && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4">
           <button aria-label="Close zoom" className="absolute inset-0" onClick={() => setZoomed(false)} />
           <div className="relative h-full max-h-[85vh] w-full max-w-4xl">
             <Image
-              src={product.images[activeImage]}
+              src={images[activeImage]}
               alt={product.name}
               fill
               className="object-contain"

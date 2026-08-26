@@ -4,8 +4,8 @@ import Link from "next/link";
 // DESIGN_SYSTEM.md §5 #3 — 2 large cards, aspect 3:4/4:5, hover scale 1.03/0.4s.
 export function GenderCards() {
   const cards = [
-    { href: "/shop/nar", label: "Nar", sub: "Men's Silver", image: "/placeholders/lifestyle-b.svg" },
-    { href: "/shop/nari", label: "Nari", sub: "Women's Silver", image: "/placeholders/lifestyle-c.svg" },
+    { href: "/shop/nar", label: "Nar", sub: "Men's Silver", image: "/placeholders/nar-category.png" },
+    { href: "/shop/nari", label: "Nari", sub: "Women's Silver", image: "/placeholders/nari-category.png" },
   ];
 
   return (

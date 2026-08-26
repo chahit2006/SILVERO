@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 const CARDS = [
-  { title: "The Craft", href: "/about/craft", image: "/placeholders/lifestyle-a.svg" },
+  { title: "The Craft", href: "/about/craft", image: "/placeholders/craft-hero.png" },
   { title: "Our Story", href: "/about/story", image: "/placeholders/lifestyle-b.svg" },
   { title: "Sustainability", href: "/about/sustainability", image: "/placeholders/lifestyle-c.svg" },
 ];

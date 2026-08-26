@@ -4,24 +4,27 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+// Reordered 2026-08-27 (IMAGES.md Pass 2, FIX 1) — the "New Season" slide
+// has no real photo yet (still an SVG placeholder), so the two slides with
+// real trial photos lead and it plays last instead of first/`priority`.
 const SLIDES = [
   {
-    image: "/placeholders/lifestyle-a.svg",
-    eyebrow: "New Season",
-    headline: "Silver, made for everyday wear",
-    cta: { label: "Explore Collections", href: "/shop" },
-  },
-  {
-    image: "/placeholders/lifestyle-b.svg",
+    image: "/placeholders/nar-hero.png",
     eyebrow: "Nar — Men",
     headline: "Chains and kada with real weight",
     cta: { label: "Shop Nar", href: "/shop/nar" },
   },
   {
-    image: "/placeholders/lifestyle-c.svg",
+    image: "/placeholders/nari-hero.png",
     eyebrow: "Nari — Women",
     headline: "Everyday silver, festive-ready",
     cta: { label: "Shop Nari", href: "/shop/nari" },
+  },
+  {
+    image: "/placeholders/lifestyle-a.svg",
+    eyebrow: "New Season",
+    headline: "Silver, made for everyday wear",
+    cta: { label: "Explore Collections", href: "/shop" },
   },
 ];
 

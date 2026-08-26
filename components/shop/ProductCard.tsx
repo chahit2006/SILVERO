@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { Product } from "@prisma/client";
 import { formatPrice } from "@/lib/format";
+import { getTrialImages } from "@/lib/trialImages"; // TEMPORARY — see lib/trialImages.ts
 import { HeartIcon } from "@/components/ui/icons";
 
 // DESIGN_SYSTEM.md §6 "Product Card". Reused by every /shop/* page and the
@@ -26,6 +27,7 @@ export function ProductCard({
   compareDisabled?: boolean;
 }) {
   const badge = product.isBestseller ? "BESTSELLER" : product.isNew ? "NEW" : null;
+  const images = getTrialImages(product) ?? product.images; // TEMPORARY — see lib/trialImages.ts
 
   return (
     <div className="group">
@@ -35,9 +37,9 @@ export function ProductCard({
           aria-label={`View ${product.name}`}
           className="absolute inset-0"
         >
-          {product.images[0] && (
+          {images[0] && (
             <Image
-              src={product.images[0]}
+              src={images[0]}
               alt={product.name}
               fill
               sizes="(min-width: 1024px) 22vw, 45vw"
